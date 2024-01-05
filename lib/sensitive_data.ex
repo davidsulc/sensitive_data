@@ -15,4 +15,6 @@ defmodule SensitiveData do
   def hello do
     :world
   end
+
+  defdelegate gets_sensitive(prompt \\ ""), to: SensitiveData.IO
 end
