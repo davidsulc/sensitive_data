@@ -1,4 +1,6 @@
 defmodule SensitiveData.IO do
+  @moduledoc false
+
   ############ Code taken from Hex ########################################
   #
   # https://github.com/hexpm/hex/blob/1881f9fe8e0571ba7fdcfc86ecf484913125dc37/lib/mix/tasks/hex.ex#L363
