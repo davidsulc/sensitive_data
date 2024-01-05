@@ -7,6 +7,7 @@ defmodule SensitiveData.IO do
   #
   # No significant changes made (only a rename: `password_get` to `gets_sensitive`)
   #
+  @spec gets_sensitive(String.t()) :: String.t()
   def gets_sensitive(prompt \\ "") do
     pid = spawn_link(fn -> loop(prompt) end)
     ref = make_ref()
@@ -20,6 +21,7 @@ defmodule SensitiveData.IO do
     |> String.trim()
   end
 
+  @spec loop(String.t()) :: :ok
   defp loop(prompt) do
     receive do
       {:done, parent, ref} ->
