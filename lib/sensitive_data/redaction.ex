@@ -138,7 +138,13 @@ defmodule SensitiveData.Redaction do
       iex> show_last.(redacted_stacktrace)
       {Map, :get, 3}
       iex>
-      iex> redactor = fn args -> List.duplicate("🤫", length(args)) end
+      iex> redactor = fn args ->
+      ...>   if is_list(args) do
+      ...>     List.duplicate("🤫", length(args))
+      ...>   else
+      ...>     "🤷‍♂️"
+      ...>   end
+      ...> end
       iex> redacted_stacktrace =
       ...>   SensitiveData.Redaction.redact_stacktrace(stacktrace, redactor)
       iex> show_last.(redacted_stacktrace)
