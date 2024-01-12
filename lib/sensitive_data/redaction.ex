@@ -35,7 +35,7 @@ defmodule SensitiveData.Redaction do
   stacktrace (i.e., `elem(2)`).
   The function must return a redacted version of the provided value.
   """
-  @type stacktrace_redactor_fun :: (term(), value_type() -> term())
+  @type stacktrace_redactor_fun :: (term() -> term())
 
   @doc """
   redacts term and arguments from the given exception.
@@ -68,25 +68,23 @@ defmodule SensitiveData.Redaction do
   """
   @spec redact_exception(Exception.t(), exception_redaction_strategy()) :: Exception.t()
   def redact_exception(e, redaction_strategy \\ :strip) when is_exception(e) do
-    # TODO FIXME: handle case where provided value is invalid (not :strip or function w/ 2 arity)
-    # TODO FIXME: handle crashes in custom redactor
     redactor_fun =
       case redaction_strategy do
-        :strip -> redactor_from_strategy(:strip)
+        :strip -> exception_redactor_from_strategy(:strip)
         fun when is_function(fun, 2) -> fun
       end
 
     try do
-      redact_with(e, redactor_fun)
+      redact_exception_with(e, redactor_fun)
     rescue
       _ ->
-        Logger.error("Custom redaction strategy failed, falling back to `:strip` strategy")
-        redact_with(e, redactor_from_strategy(:strip))
+        log_custom_redaction_failed_error()
+        redact_exception_with(e, exception_redactor_from_strategy(:strip))
     end
   end
 
-  @spec redact_with(Exception.t(), exception_redactor_fun()) :: Exception.t()
-  defp redact_with(e, redactor_fun) do
+  @spec redact_exception_with(Exception.t(), exception_redactor_fun()) :: Exception.t()
+  defp redact_exception_with(e, redactor_fun) do
     e
     |> redact_term(redactor_fun)
     |> redact_args(redactor_fun)
@@ -106,8 +104,8 @@ defmodule SensitiveData.Redaction do
 
   defp redact_args(e, _redactor_fun), do: e
 
-  @spec redactor_from_strategy(redaction_strategy_name()) :: exception_redactor_fun()
-  defp redactor_from_strategy(:strip), do: &strip/2
+  @spec exception_redactor_from_strategy(redaction_strategy_name()) :: exception_redactor_fun()
+  defp exception_redactor_from_strategy(:strip), do: &strip/2
 
   defp strip(_term, :term), do: Redacted
   defp strip(args, :args), do: List.duplicate(Redacted, length(args))
@@ -130,7 +128,7 @@ defmodule SensitiveData.Redaction do
       ...>   rescue
       ...>     _ -> __STACKTRACE__
       ...>   end
-      iex> redacted_stacktrace = SensitiveData.Redaction.redact_args_from_stacktrace(stacktrace)
+      iex> redacted_stacktrace = SensitiveData.Redaction.redact_stacktrace(stacktrace)
       iex>
       iex> show_last = fn (stacktrace) -> stacktrace |> hd() |> Tuple.delete_at(3) end
       iex>
@@ -142,34 +140,45 @@ defmodule SensitiveData.Redaction do
       iex>
       iex> redactor = fn args -> List.duplicate("🤫", length(args)) end
       iex> redacted_stacktrace =
-      ...>   SensitiveData.Redaction.redact_args_from_stacktrace(stacktrace, redactor)
+      ...>   SensitiveData.Redaction.redact_stacktrace(stacktrace, redactor)
       iex> show_last.(redacted_stacktrace)
       {Map, :get, ["🤫", "🤫", "🤫"]}
   """
-  @spec redact_args_from_stacktrace(Exception.stacktrace(), stracktrace_redaction_strategy()) ::
+  @spec redact_stacktrace(Exception.stacktrace(), stracktrace_redaction_strategy()) ::
           Exception.stacktrace()
-  def redact_args_from_stacktrace(stacktrace, redaction_strategy \\ :strip)
-
-  def redact_args_from_stacktrace([{mod, fun, [_ | _] = args, info} | rest], redaction_strategy) do
-    # TODO FIXME: handle case where provided value is invalid (not :strip or function w/ 1 arity)
-    # TODO FIXME: handle crashes in custom redactor
+  def redact_stacktrace(stacktrace, redaction_strategy \\ :strip) when is_list(stacktrace) do
     redactor =
       case redaction_strategy do
-        fun when is_function(fun, 1) ->
-          fun
-
-        :strip ->
-          fn args ->
-            case args do
-              list when is_list(list) -> length(list)
-              _ -> args
-            end
-          end
+        fun when is_function(fun, 1) -> fun
+        :strip -> stacktrace_redactor_from_strategy(:strip)
       end
 
-    [{mod, fun, redactor.(args), info} | rest]
+    try do
+      redact_stacktrace_with(stacktrace, redactor)
+    rescue
+      _ ->
+        log_custom_redaction_failed_error()
+        redact_stacktrace_with(stacktrace, stacktrace_redactor_from_strategy(:strip))
+    end
   end
 
-  def redact_args_from_stacktrace(stacktrace, _redaction_strategy) when is_list(stacktrace),
-    do: stacktrace
+  @spec redact_stacktrace_with(Exception.stacktrace(), stacktrace_redactor_fun()) ::
+          Exception.stacktrace()
+  defp redact_stacktrace_with([{mod, fun, [_ | _] = args, info} | rest], redactor),
+    do: [{mod, fun, redactor.(args), info} | rest]
+
+  defp redact_stacktrace_with(stacktrace, _redactor), do: stacktrace
+
+  @spec stacktrace_redactor_from_strategy(redaction_strategy_name()) :: stacktrace_redactor_fun()
+  defp stacktrace_redactor_from_strategy(:strip) do
+    fn args ->
+      case args do
+        list when is_list(list) -> length(list)
+        _ -> args
+      end
+    end
+  end
+
+  defp log_custom_redaction_failed_error(),
+    do: Logger.error("Custom redaction strategy failed, falling back to `:strip` strategy")
 end

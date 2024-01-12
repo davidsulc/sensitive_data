@@ -25,8 +25,12 @@ defmodule SensitiveData.RedactionTest do
 
   test "redact_exception/2", %{secret: secret, exception: exception} do
     assert %BadMapError{term: ^secret} = exception
-    assert %BadMapError{term: SensitiveData.Redacted} = redact_exception(exception)
+    basic_redaction_result = %BadMapError{term: SensitiveData.Redacted}
 
+    # basic redaction
+    assert ^basic_redaction_result = redact_exception(exception)
+
+    # custom redaction
     redactor = fn val, type ->
       case type do
         :term ->
@@ -40,10 +44,11 @@ defmodule SensitiveData.RedactionTest do
 
     assert %BadMapError{term: "SOM********"} = redact_exception(exception, redactor)
 
+    # handling failing custom redactions
     {redacted_exception, log} =
       with_log(fn -> redact_exception(exception, fn _val, _type -> raise "oops" end) end)
 
-    assert %BadMapError{term: SensitiveData.Redacted} = redacted_exception
+    assert ^basic_redaction_result = redacted_exception
 
     assert String.contains?(
              log,
@@ -51,15 +56,36 @@ defmodule SensitiveData.RedactionTest do
            )
   end
 
-  test "redact_args_from_stacktrace/2", %{secret: secret, stacktrace: stacktrace} do
-    # we only care about the last call (and drop the file info from the tuple)
-    show_last = fn stacktrace -> stacktrace |> hd() |> Tuple.delete_at(3) end
+  test "redact_stacktrace/2", %{secret: secret, stacktrace: stacktrace} do
+    assert {Map, :get, [^secret, :some_key, nil]} = last_stacktrace_line(stacktrace)
 
-    assert {Map, :get, [^secret, :some_key, nil]} = show_last.(stacktrace)
+    basic_redaction_result = {Map, :get, 3}
 
-    assert {Map, :get, 3} =
-             stacktrace
-             |> redact_args_from_stacktrace()
-             |> show_last.()
+    # basic redaction
+    assert ^basic_redaction_result = do_redact_stacktrace(stacktrace)
+
+    # custom redaction
+    redactor = fn args -> List.duplicate("🤫", length(args)) end
+    assert {Map, :get, ["🤫", "🤫", "🤫"]} = do_redact_stacktrace(stacktrace, redactor)
+
+    # handling failing custom redactions
+    {redacted_stacktrace, log} =
+      with_log(fn -> do_redact_stacktrace(stacktrace, fn _args -> raise "oops" end) end)
+
+    assert ^basic_redaction_result = redacted_stacktrace
+
+    assert String.contains?(
+             log,
+             "Custom redaction strategy failed, falling back to `:strip` strategy"
+           )
+  end
+
+  # we only care about the last call (and drop the file info from the tuple)
+  defp last_stacktrace_line(stacktrace), do: stacktrace |> hd() |> Tuple.delete_at(3)
+
+  defp do_redact_stacktrace(stacktrace, strat \\ :strip) do
+    stacktrace
+    |> redact_stacktrace(strat)
+    |> last_stacktrace_line()
   end
 end

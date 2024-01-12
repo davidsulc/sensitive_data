@@ -24,7 +24,7 @@ defmodule SensitiveData do
     rescue
       e ->
         reraise Redaction.redact_exception(e),
-                Redaction.redact_args_from_stacktrace(__STACKTRACE__)
+                Redaction.redact_stacktrace(__STACKTRACE__)
     end
   end
 
