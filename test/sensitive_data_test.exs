@@ -28,5 +28,23 @@ defmodule SensitiveDataTest do
     refute String.contains?(error_message, secret)
 
     refute String.contains?(stacktrace, secret)
+
+    # redaction can be customized
+    custom_redaction_exception = "CUSTOM_REDACTION_EXCEPTION"
+    custom_redaction_stacktrace = "CUSTOM_REDACTION_STACKTRACE"
+
+    {error_message, stacktrace} =
+      capture_exception_io(fn ->
+        SensitiveData.execute(test_action,
+          exception_redaction: fn _val, _term -> custom_redaction_exception end,
+          stacktrace_redaction: fn _args -> custom_redaction_stacktrace end
+        )
+      end)
+
+    assert String.contains?(error_message, custom_redaction_exception)
+    assert String.contains?(stacktrace, custom_redaction_stacktrace)
+
+    refute String.contains?(error_message, secret)
+    refute String.contains?(stacktrace, secret)
   end
 end
