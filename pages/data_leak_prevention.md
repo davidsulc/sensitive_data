@@ -86,7 +86,7 @@ stacktrace: [
 ```
 
 So function calls that deal with sensitive data need to be wrapped in a
-`try`/`rescue` block so that sensitive arguments can be pruned from the
+`try`/`rescue` block so that sensitive arguments can be redacted from the
 stack trace, and they must also ensure that sensitive data is removed
 from exception structs.
 

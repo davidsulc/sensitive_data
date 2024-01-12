@@ -23,8 +23,8 @@ defmodule SensitiveData do
       fun.()
     rescue
       e ->
-        reraise Redaction.prune_exception(e),
-                Redaction.prune_args_from_stacktrace(__STACKTRACE__)
+        reraise Redaction.redact_exception(e),
+                Redaction.redact_args_from_stacktrace(__STACKTRACE__)
     end
   end
 

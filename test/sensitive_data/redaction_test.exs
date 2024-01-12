@@ -4,6 +4,8 @@ defmodule SensitiveData.RedactionTest do
 
   import SensitiveData.Redaction
 
+  import ExUnit.CaptureLog
+
   setup do
     secret = "SOME SECRET"
 
@@ -21,9 +23,9 @@ defmodule SensitiveData.RedactionTest do
     }
   end
 
-  test "prune_exception/2", %{secret: secret, exception: exception} do
+  test "redact_exception/2", %{secret: secret, exception: exception} do
     assert %BadMapError{term: ^secret} = exception
-    assert %BadMapError{term: SensitiveData.Redacted} = prune_exception(exception)
+    assert %BadMapError{term: SensitiveData.Redacted} = redact_exception(exception)
 
     redactor = fn val, type ->
       case type do
@@ -36,10 +38,20 @@ defmodule SensitiveData.RedactionTest do
       end
     end
 
-    assert %BadMapError{term: "SOM********"} = prune_exception(exception, redactor)
+    assert %BadMapError{term: "SOM********"} = redact_exception(exception, redactor)
+
+    {redacted_exception, log} =
+      with_log(fn -> redact_exception(exception, fn _val, _type -> raise "oops" end) end)
+
+    assert %BadMapError{term: SensitiveData.Redacted} = redacted_exception
+
+    assert String.contains?(
+             log,
+             "Custom redaction strategy failed, falling back to `:strip` strategy"
+           )
   end
 
-  test "prune_args_from_stacktrace/2", %{secret: secret, stacktrace: stacktrace} do
+  test "redact_args_from_stacktrace/2", %{secret: secret, stacktrace: stacktrace} do
     # we only care about the last call (and drop the file info from the tuple)
     show_last = fn stacktrace -> stacktrace |> hd() |> Tuple.delete_at(3) end
 
@@ -47,7 +59,7 @@ defmodule SensitiveData.RedactionTest do
 
     assert {Map, :get, 3} =
              stacktrace
-             |> prune_args_from_stacktrace()
+             |> redact_args_from_stacktrace()
              |> show_last.()
   end
 end
