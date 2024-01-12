@@ -2,6 +2,8 @@ defmodule SensitiveDataTest do
   use ExUnit.Case
   doctest SensitiveData
 
+  import SensitiveData
+
   defp capture_exception_io(fun) do
     try do
       fun.()
@@ -23,7 +25,7 @@ defmodule SensitiveDataTest do
 
     # secrets don't leak from within `execute`
     {error_message, stacktrace} =
-      capture_exception_io(fn -> SensitiveData.execute(test_action) end)
+      capture_exception_io(fn -> execute(test_action) end)
 
     refute String.contains?(error_message, secret)
 
@@ -35,7 +37,7 @@ defmodule SensitiveDataTest do
 
     {error_message, stacktrace} =
       capture_exception_io(fn ->
-        SensitiveData.execute(test_action,
+        execute(test_action,
           exception_redaction: fn _val, _term -> custom_redaction_exception end,
           stacktrace_redaction: fn _args -> custom_redaction_stacktrace end
         )

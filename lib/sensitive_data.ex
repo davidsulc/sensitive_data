@@ -61,6 +61,6 @@ defmodule SensitiveData do
 
       SensitiveData.get_sensitive("Enter your password: ")
   """
-  @spec gets_sensitive(String.t()) :: String.t()
+  @spec gets_sensitive(prompt) :: user_input when prompt: String.t(), user_input: String.t()
   defdelegate gets_sensitive(prompt \\ ""), to: SensitiveData.IO
 end
