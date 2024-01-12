@@ -88,6 +88,24 @@ defmodule SensitiveData.Redaction do
   #
   @doc """
   Prunes the stacktrace to remove any argument trace.
+
+  ## Example
+
+      iex> stacktrace =
+      ...>   try do
+      ...>     Map.get("SOME SECRET", :some_key)
+      ...>   rescue
+      ...>     _ -> __STACKTRACE__
+      ...>   end
+      iex> redacted_stacktrace = SensitiveData.Redaction.prune_args_from_stacktrace(stacktrace)
+      iex>
+      iex> show_last = fn (stacktrace) -> stacktrace |> hd() |> Tuple.delete_at(3) end
+      iex>
+      iex> show_last.(stacktrace)
+      {Map, :get, ["SOME SECRET", :some_key, nil]}
+      iex>
+      iex> show_last.(redacted_stacktrace)
+      {Map, :get, 3}
   """
   @spec prune_args_from_stacktrace(Exception.stacktrace()) :: Exception.stacktrace()
   def prune_args_from_stacktrace(stacktrace)
