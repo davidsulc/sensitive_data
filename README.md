@@ -1,6 +1,6 @@
 # SensitiveData
 
-**TODO: Add description**
+A library dealing with sensitive data and leak prevention.
 
 ## Installation
 
