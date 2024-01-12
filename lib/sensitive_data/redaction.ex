@@ -2,31 +2,46 @@ defmodule SensitiveData.Redaction do
   @moduledoc """
   Functions for redacting information.
 
-  In typical use, there's no need to call these functions directly:
-  `SensitiveData.execute/1` should be used instead as it will handle
-  redaction duties and call the necessary functions from this module.
+  > ### Tip {: .tip}
+  >
+  >In typical use, there's no need to call these functions directly:
+  >`SensitiveData.execute/1` should be used instead as it will handle
+  >redaction duties and call the necessary functions from this module.
   """
 
   alias SensitiveData.Redacted
 
-  @type pruning_strategy :: redactor_fun() | pruning_strategy_name()
+  @type exception_pruning_strategy :: exception_redactor_fun() | pruning_strategy_name()
+  @type stracktrace_pruning_strategy :: stacktrace_redactor_fun() | pruning_strategy_name()
+  @typedoc """
+  The name of the pruning strategy to use when pruning `term` and `args`
+  values from `Exception`s. Currently, only `:strip` is supported.
+  """
+  @type pruning_strategy_name :: :strip
   @typedoc """
   A function responsible for redacting term and args.
   It will be given a value to redact, as well whether the value came
   from the `:term` or `:args` key within the `Exception` struct.
   The function must return a redacted version of the provided value.
   """
-  @type redactor_fun :: (term(), value_type() -> term())
-  @typedoc """
-  The name of the pruning strategy to use when pruning `term` and `args`
-  values from `Exception`s. Currently, only `:strip` is supported.
-  """
-  @type pruning_strategy_name :: :strip
+  @type exception_redactor_fun :: (term(), value_type() -> term())
   @typedoc "The type of information being pruned from the `Exception`"
   @type value_type :: :term | :args
+  @typedoc """
+  A function responsible for redacting args from a stacktrace.
+  It will be given the value in the 3rd position of the tuple in the
+  stacktrace (i.e., `elem(2)`).
+  The function must return a redacted version of the provided value.
+  """
+  @type stacktrace_redactor_fun :: (term(), value_type() -> term())
 
   @doc """
   Prunes term and arguments from the given exception.
+
+  > #### Beware {: .warning}
+  >
+  > If you use a custom pruning strategy, you must ensure it won't leak any
+  > sensitive data under any circumstances.
 
   ## Example
 
@@ -49,8 +64,10 @@ defmodule SensitiveData.Redaction do
       ...> end)
       %BadMapError{term: "SOM********"}
   """
-  @spec prune_exception(Exception.t(), pruning_strategy()) :: Exception.t()
+  @spec prune_exception(Exception.t(), exception_pruning_strategy()) :: Exception.t()
   def prune_exception(e, pruning_strategy \\ :strip) when is_exception(e) do
+    # TODO FIXME: handle case where provided value is invalid (not :strip or function w/ 2 arity)
+    # TODO FIXME: handle crashes in custom redactor
     redactor_fun =
       case pruning_strategy do
         :strip -> &strip/2
@@ -62,14 +79,14 @@ defmodule SensitiveData.Redaction do
     |> prune_args(redactor_fun)
   end
 
-  @spec prune_term(Exception.t(), redactor_fun()) :: Exception.t()
+  @spec prune_term(Exception.t(), exception_redactor_fun()) :: Exception.t()
 
   defp prune_term(%{term: term} = e, redactor_fun) when is_function(redactor_fun, 2),
     do: %{e | term: redactor_fun.(term, :term)}
 
   defp prune_term(e, _redactor_fun), do: e
 
-  @spec prune_args(Exception.t(), redactor_fun()) :: Exception.t()
+  @spec prune_args(Exception.t(), exception_redactor_fun()) :: Exception.t()
 
   defp prune_args(%{args: args} = e, redactor_fun) when is_function(redactor_fun, 2),
     do: %{e | args: redactor_fun.(args, :args)}
@@ -84,10 +101,18 @@ defmodule SensitiveData.Redaction do
   # https://github.com/elixir-plug/plug_crypto/blob/a3162119fc8fe519772b74760ead4a89e7709925/lib/plug/crypto.ex#L11-L21
   # Licensed under the Apache License, Version 2.0 (the "License")
   #
-  # No changes made
+  # Changes made:
+  # - add extra parameter to allow for custom redaction of arguments
   #
   @doc """
-  Prunes the stacktrace to remove any argument trace.
+  Prunes the stacktrace to remove sensitive arguments.
+
+  By default, all arguments will be completely stripped.
+
+  > #### Beware {: .warning}
+  >
+  > If you use a custom pruning strategy, you must ensure it won't leak any
+  > sensitive data under any circumstances.
 
   ## Example
 
@@ -106,14 +131,38 @@ defmodule SensitiveData.Redaction do
       iex>
       iex> show_last.(redacted_stacktrace)
       {Map, :get, 3}
+      iex>
+      iex> redactor = fn args -> List.duplicate("🤫", length(args)) end
+      iex> redacted_stacktrace =
+      ...>   SensitiveData.Redaction.prune_args_from_stacktrace(stacktrace, redactor)
+      iex> show_last.(redacted_stacktrace)
+      {Map, :get, ["🤫", "🤫", "🤫"]}
   """
-  @spec prune_args_from_stacktrace(Exception.stacktrace()) :: Exception.stacktrace()
-  def prune_args_from_stacktrace(stacktrace)
+  @spec prune_args_from_stacktrace(Exception.stacktrace(), stracktrace_pruning_strategy()) ::
+          Exception.stacktrace()
+  def prune_args_from_stacktrace(stacktrace, pruning_strategy \\ :strip)
 
-  def prune_args_from_stacktrace([{mod, fun, [_ | _] = args, info} | rest]),
-    do: [{mod, fun, length(args), info} | rest]
+  def prune_args_from_stacktrace([{mod, fun, [_ | _] = args, info} | rest], pruning_strategy) do
+    # TODO FIXME: handle case where provided value is invalid (not :strip or function w/ 1 arity)
+    # TODO FIXME: handle crashes in custom redactor
+    redactor =
+      case pruning_strategy do
+        fun when is_function(fun, 1) ->
+          fun
 
-  def prune_args_from_stacktrace(stacktrace) when is_list(stacktrace),
+        :strip ->
+          fn args ->
+            case args do
+              list when is_list(list) -> length(list)
+              _ -> args
+            end
+          end
+      end
+
+    [{mod, fun, redactor.(args), info} | rest]
+  end
+
+  def prune_args_from_stacktrace(stacktrace, _pruning_strategy) when is_list(stacktrace),
     do: stacktrace
 
   #

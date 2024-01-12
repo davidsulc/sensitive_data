@@ -18,6 +18,7 @@ defmodule SensitiveData do
   """
   @spec execute((-> result)) :: result when result: term() | no_return()
   def execute(fun) when is_function(fun, 0) do
+    # TODO allow using custom pruning strategies
     try do
       fun.()
     rescue
