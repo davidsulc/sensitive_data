@@ -24,32 +24,59 @@ defmodule SensitiveData.Wrapper.Impl do
   import SensitiveData.DataType, only: [data_type: 1]
   import SensitiveData.Guards, only: [is_sensitive: 1]
 
-  @spec wrap(term, list) :: struct()
+  alias SensitiveData.Wrapper
+
+  @spec wrap(term, Keyword.t()) :: struct()
   def wrap(term, opts) when is_list(opts) do
     SensitiveData.execute(fn ->
-      Keyword.fetch!(opts, :into)
-      |> struct!(into_struct_shape(opts))
-      |> update_data_payload(fn _ -> term end, opts)
+      into = Keyword.fetch!(opts, :into)
+
+      with {:ok, {wrapper_mod, wrapper_opts}} <- Wrapper.spec(into) do
+        wrapper_mod
+        |> struct!(into_struct_shape(wrapper_opts))
+        |> update_data_payload(fn _ -> term end)
+      else
+        {:error, e} -> raise e
+      end
     end)
   end
 
+  @spec into_struct_shape(Keyword.t()) :: map()
   defp into_struct_shape(opts) do
+    priv_opts =
+      case Keyword.get(opts, :redactor) do
+        nil -> []
+        redactor -> [redactor: redactor]
+      end
+
     %{
       label: Keyword.get(opts, :label),
-      __priv__: PrivateData.new!(opts)
+      __priv__: PrivateData.new!(priv_opts)
     }
   end
 
-  defp update_data_payload(%{} = wrapper, updater_fun, opts)
-       when is_sensitive(wrapper) and is_function(updater_fun, 1) do
-    updated_data = SensitiveData.execute(fn -> wrapper |> unwrap() |> updater_fun.() end)
+  @spec update_data_payload(
+          Wrapper.t(),
+          (existing_value :: term() -> new_value :: term()),
+          Keyword.t()
+        ) :: Wrapper.t()
+  defp update_data_payload(%mod{} = wrapper, fun, opts \\ [])
+       when is_sensitive(wrapper) and is_function(fun, 1) do
+    updated_data = SensitiveData.execute(fn -> wrapper |> unwrap() |> fun.() end)
 
     new_label = Keyword.get(opts, :label, wrapper.label)
     new_redactor = Keyword.get(opts, :redactor, wrapper.__priv__.redactor)
 
-    updated_wrapper = %{
+    redacted =
+      case new_redactor do
+        nil -> apply(mod, :redact_term, [updated_data])
+        _ -> new_redactor.(updated_data)
+      end
+
+    %{
       wrapper
       | label: new_label,
+        redacted: redacted,
         __priv__: %{
           wrapper.__priv__
           | data_provider: fn -> updated_data end,
@@ -57,14 +84,12 @@ defmodule SensitiveData.Wrapper.Impl do
             redactor: new_redactor
         }
     }
-
-    %{updated_wrapper | redacted: to_redacted(updated_wrapper)}
   end
 
   @spec unwrap(struct()) :: term()
   def unwrap(%{} = wrapper) when is_sensitive(wrapper),
     do: wrapper.__priv__.data_provider.()
 
-  # TODO FIXME
-  defp to_redacted(_term), do: SensitiveData.Redacted
+  @spec to_redacted(struct()) :: term()
+  def to_redacted(%{} = wrapper) when is_sensitive(wrapper), do: wrapper.redacted
 end

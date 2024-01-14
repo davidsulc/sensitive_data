@@ -18,7 +18,8 @@ defmodule SensitiveData.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      # TODO restore
+      extra_applications: [:logger, :wx, :observer, :runtime_tools]
     ]
   end
 

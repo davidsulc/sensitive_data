@@ -12,6 +12,27 @@ defmodule SensitiveData.Wrapper do
 
   @callback unwrap(t()) :: term()
 
+  @doc false
+  @spec spec(Keyword.t()) :: {:ok, {atom(), Keyword.t()}} | {:error, Exception.t()}
+  # TODO verify mod has wrap function, and that the result is_sensitive
+  def spec({mod, opts}) when is_atom(mod) and is_list(opts), do: {:ok, {mod, opts}}
+  # TODO FIXME handle error cases (nil, bad mod, etc.)
+  def spec(mod) when is_atom(mod), do: spec({mod, []})
+
+  @doc false
+  @spec spec!(Keyword.t()) :: {atom(), Keyword.t()}
+  def spec!(spec_info) do
+    with {:ok, spec} <- spec(spec_info) do
+      spec
+    else
+      {:error, e} -> raise e
+    end
+  end
+
+  @doc false
+  def from_spec!({mod, opts}, raw_data),
+    do: SensitiveData.execute(fn -> apply(mod, :wrap, [raw_data | [opts]]) end)
+
   defmacro __using__(macro_opts) do
     allowed_macro_opts = [:default_label, :default_redactor]
 
@@ -50,6 +71,15 @@ defmodule SensitiveData.Wrapper do
 
       @spec unwrap(t()) :: term()
       def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.unwrap(wrapper)
+
+      @spec to_redacted(t()) :: term()
+      def to_redacted(%__MODULE__{} = wrapper),
+        do: SensitiveData.Wrapper.Impl.to_redacted(wrapper)
+
+      @spec redact_term(term()) :: term()
+      def redact_term(_term), do: nil
+
+      defoverridable redact_term: 1
     end
   end
 end

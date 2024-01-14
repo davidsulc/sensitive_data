@@ -10,7 +10,7 @@ defmodule SensitiveData.IO do
   # No significant changes made (only a rename: `password_get` to `gets_sensitive`)
   #
   @spec gets_sensitive(String.t()) :: String.t()
-  def gets_sensitive(prompt \\ "") do
+  def gets_sensitive(prompt) do
     pid = spawn_link(fn -> loop(prompt) end)
     ref = make_ref()
     value = IO.gets(prompt <> " ")
