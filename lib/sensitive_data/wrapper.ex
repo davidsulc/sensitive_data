@@ -5,25 +5,47 @@ defmodule SensitiveData.Wrapper do
 
   @typedoc """
   A wrapper containing sensitive data.
-  """
-  @opaque t() :: map()
 
-  @callback wrap(term(), Keyword.t()) :: t()
+  The wrapper structure should be considered opaque, aside from the `label` and
+  `redacted` fields. You may read and match on those fields, but accessing
+  any other fields or directly modifying any field is not advised.
+
+  Limited information regarding the contained sensitive data can be obtained
+  via the guards in `SensitiveData.Guards` and `SensitiveData.Guards.Size`.
+  """
+  @type t() :: %{
+          :__struct__ => atom(),
+          :label => term(),
+          :redacted => term(),
+          optional(atom()) => term()
+        }
+  @type spec :: wrapper_module() | {wrapper_module(), wrap_opts()}
+  @typedoc """
+  A module implementing the `c:wrap/2` callback from the
+  `SensitiveData.Wrapper` behaviour.
+  """
+  @type wrapper_module :: atom()
+  @typedoc """
+  Wrapping options. See `c:SensitiveData.Wrapper.wrap/2`.
+  """
+  @type wrap_opts :: Keyword.t()
+
+  @callback wrap(term(), into: spec()) :: t()
 
   @callback unwrap(t()) :: term()
 
   @doc false
-  @spec spec(Keyword.t()) :: {:ok, {atom(), Keyword.t()}} | {:error, Exception.t()}
+  @spec spec(spec()) :: {:ok, {atom(), Keyword.t()}} | {:error, Exception.t()}
   # TODO verify mod has wrap function, and that the result is_sensitive
   def spec({mod, opts}) when is_atom(mod) and is_list(opts), do: {:ok, {mod, opts}}
   # TODO FIXME handle error cases (nil, bad mod, etc.)
   def spec(mod) when is_atom(mod), do: spec({mod, []})
 
   @doc false
-  @spec spec!(Keyword.t()) :: {atom(), Keyword.t()}
-  def spec!(spec_info) do
-    with {:ok, spec} <- spec(spec_info) do
-      spec
+  @spec spec!(spec()) :: {atom(), Keyword.t()}
+  def spec!(spec) do
+    with {:ok, valid_spec} <- spec(spec) do
+      valid_spec
     else
       {:error, e} -> raise e
     end

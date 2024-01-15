@@ -6,13 +6,28 @@ defmodule SensitiveData do
   alias SensitiveData.Redaction
   alias SensitiveData.Wrapper
 
-  @doc """
+  @type execute_opts :: [
+          exception_redaction: Redaction.exception_redaction_strategy(),
+          stacktrace_redaction: Redaction.stacktrace_redaction_strategy(),
+          into: Wrapper.spec()
+        ]
+
+  into_opts_doc = """
+  - `:into` - a `t:SensitiveData.Wrapper.spec/0` within which to wrap the
+    input obtained from stdin. By default the value is not wrapped and is
+    returned as is.
+  """
+
+  @doc ~s"""
   Executes the provided function, ensuring no data leaks in case of error.
 
   ## Options
 
-  - `:exception_redaction`: value that will be passed on to `SensitiveData.Redaction.redact_exception/2`
-  - `:stacktrace_redaction`: value that will be passed on to `SensitiveData.Redaction.redact_stacktrace/2`
+  - `:exception_redaction` - will be passed on to
+    `SensitiveData.Redaction.redact_exception/2`
+  - `:stacktrace_redaction` - will be passed on to
+    `SensitiveData.Redaction.redact_stacktrace/2`
+  #{into_opts_doc}
 
   ## Examples
 
@@ -38,9 +53,15 @@ defmodule SensitiveData do
       ...>   end
       ...> end)
       ** (BadMapError) expected a map, got: "S************"
+
+  Passing the execution result to a `SecretData` module implementing
+  the `SensitiveData.Wrapper` behaviour:
+
+      SensitiveData.execute(fn ->
+        System.fetch_env!("DATABASE_PASSWORD")
+      end, into: SecretData)
   """
-  # TODO document :into option
-  @spec execute((-> result), Keyword.t()) :: result when result: term() | no_return()
+  @spec execute((-> result), execute_opts()) :: result when result: term() | no_return()
   def execute(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do
     raw_data =
       try do
@@ -57,17 +78,26 @@ defmodule SensitiveData do
     maybe_wrap(raw_data, opts)
   end
 
-  @doc """
+  @doc ~s"""
   Reads a line from stdin, without echoing the input back to the console.
+
+  ## Options
+
+  #{into_opts_doc}
 
   ## Examples
 
-  To display "Enter your password: " as a prompt and await user input:
+  To display a prompt and await user input:
 
-      SensitiveData.get_sensitive("Enter your password: ")
+      SensitiveData.gets_sensitive("Enter your database password: ")
+
+  To do the same but wrap the result within a `SecretData` module implementing
+  the `SensitiveData.Wrapper` behaviour:
+
+      SensitiveData.gets_sensitive("Enter your database password: ",
+        into: {SecretData, label: :db_password})
   """
-  # TODO document :into option
-  @spec gets_sensitive(prompt, Keyword.t()) :: user_input
+  @spec gets_sensitive(prompt, into: Wrapper.spec()) :: user_input
         when prompt: String.t(), user_input: String.t()
   def gets_sensitive(prompt, opts \\ []) do
     execute(fn ->

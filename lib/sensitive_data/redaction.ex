@@ -14,7 +14,7 @@ defmodule SensitiveData.Redaction do
   alias SensitiveData.Redacted
 
   @type exception_redaction_strategy :: exception_redactor_fun() | redaction_strategy_name()
-  @type stracktrace_redaction_strategy :: stacktrace_redactor_fun() | redaction_strategy_name()
+  @type stacktrace_redaction_strategy :: stacktrace_redactor_fun() | redaction_strategy_name()
   @typedoc """
   The name of the redaction strategy to use when redaction `term` and `args`
   values from `Exception`s. Currently, only `:strip` is supported.
@@ -38,7 +38,7 @@ defmodule SensitiveData.Redaction do
   @type stacktrace_redactor_fun :: (term() -> term())
 
   @doc """
-  redacts term and arguments from the given exception.
+  Redacts term and arguments from the given exception.
 
   > #### Beware {: .warning}
   >
@@ -111,7 +111,7 @@ defmodule SensitiveData.Redaction do
   defp strip(args, :args), do: List.duplicate(Redacted, length(args))
 
   @doc """
-  redacts the stacktrace to remove sensitive arguments.
+  Redacts the stacktrace to remove sensitive arguments.
 
   By default, all arguments will be completely stripped.
 
@@ -150,7 +150,7 @@ defmodule SensitiveData.Redaction do
       iex> show_last.(redacted_stacktrace)
       {Map, :get, ["🤫", "🤫", "🤫"]}
   """
-  @spec redact_stacktrace(Exception.stacktrace(), stracktrace_redaction_strategy()) ::
+  @spec redact_stacktrace(Exception.stacktrace(), stacktrace_redaction_strategy()) ::
           Exception.stacktrace()
   def redact_stacktrace(stacktrace, redaction_strategy \\ :strip) when is_list(stacktrace) do
     redactor =

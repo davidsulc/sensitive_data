@@ -1,4 +1,6 @@
 defmodule SensitiveData.Wrapper.Impl do
+  @moduledoc false
+
   defmodule PrivateData do
     @moduledoc false
 
@@ -26,7 +28,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
   alias SensitiveData.Wrapper
 
-  @spec wrap(term, Keyword.t()) :: struct()
+  @spec wrap(term, Keyword.t()) :: Wrapper.t()
   def wrap(term, opts) when is_list(opts) do
     SensitiveData.execute(fn ->
       into = Keyword.fetch!(opts, :into)
@@ -60,12 +62,14 @@ defmodule SensitiveData.Wrapper.Impl do
           (existing_value :: term() -> new_value :: term()),
           Keyword.t()
         ) :: Wrapper.t()
-  defp update_data_payload(%mod{} = wrapper, fun, opts \\ [])
+  defp update_data_payload(wrapper, fun, opts \\ [])
        when is_sensitive(wrapper) and is_function(fun, 1) do
     updated_data = SensitiveData.execute(fn -> wrapper |> unwrap() |> fun.() end)
 
     new_label = Keyword.get(opts, :label, wrapper.label)
     new_redactor = Keyword.get(opts, :redactor, wrapper.__priv__.redactor)
+
+    %mod{} = wrapper
 
     redacted =
       case new_redactor do

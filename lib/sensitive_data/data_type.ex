@@ -1,4 +1,6 @@
 defmodule SensitiveData.DataType do
+  @moduledoc false
+
   alias SensitiveData.DataType.AtomType
   alias SensitiveData.DataType.BitstringType
   alias SensitiveData.DataType.MapType
