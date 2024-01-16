@@ -43,7 +43,7 @@ defmodule SensitiveData.Wrapper.Impl do
     end)
   end
 
-  @spec into_struct_shape(Keyword.t()) :: map()
+  @spec into_struct_shape(Wrapper.wrap_opts()) :: map()
   defp into_struct_shape(opts) do
     priv_opts =
       case Keyword.get(opts, :redactor) do

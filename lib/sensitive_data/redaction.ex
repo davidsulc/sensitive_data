@@ -13,15 +13,22 @@ defmodule SensitiveData.Redaction do
 
   alias SensitiveData.Redacted
 
+  @typedoc """
+  A redaction function returning the redacted equivalent of the given term.
+  """
+  @type redactor :: (term() -> term())
   @type exception_redaction_strategy :: exception_redactor_fun() | redaction_strategy_name()
   @type stacktrace_redaction_strategy :: stacktrace_redactor_fun() | redaction_strategy_name()
   @typedoc """
   The name of the redaction strategy to use when redaction `term` and `args`
-  values from `Exception`s. Currently, only `:strip` is supported.
+  values from `Exception`s.
+
+  Currently, only `:strip` is supported.
   """
   @type redaction_strategy_name :: :strip
   @typedoc """
   A function responsible for redacting term and args.
+
   It will be given a value to redact, as well whether the value came
   from the `:term` or `:args` key within the `Exception` struct.
   The function must return a redacted version of the provided value.
@@ -31,6 +38,7 @@ defmodule SensitiveData.Redaction do
   @type value_type :: :term | :args
   @typedoc """
   A function responsible for redacting args from a stacktrace.
+
   It will be given the value in the 3rd position of the tuple in the
   stacktrace (i.e., `elem(2)`).
   The function must return a redacted version of the provided value.
