@@ -78,7 +78,39 @@ defmodule SensitiveData.Wrapper do
   @doc """
   Returns the redacted equivalent of the sensitive term within `wrapper`.
   """
+  # TODO document redaction order (redactor from wrap option, default redactor,
+  # fallback to Redacted)
   @callback to_redacted(wrapper :: t()) :: term()
+
+  @doc """
+  Returns a redacted equivalent of the provided sensitive `term`.
+  """
+  @callback redactor(term()) :: term()
+
+  @doc """
+  Returns a label to describe the given sensitive `term`.
+
+  The label will be maintained as a field within the wrapper (see
+  [labeling and redacting section](#module-labeling-and-redacting))
+  and can be used to assist in determining what the wrapped sensitive value
+  was then the wrapper is inspected (manually when debugging, via Observer,
+  dumped in crashes, and so on).
+
+  ## Example
+
+      defmodule DatabaseCredentials do
+        use SensitiveData
+
+        def labeler(%{username: _, password: _}), do: :username_and_password
+        def labeler(%URI{}), do: :connection_uri
+      end
+
+      DatabaseCredentials.wrap(%{username: "foo", password: "bar"})
+      # #DatabaseCredentials<label: :credit_card_user_bob, ...>
+  """
+  @callback labeler(term()) :: term()
+
+  @optional_callbacks labeler: 1, redactor: 1
 
   @doc false
   @spec spec(spec()) :: {:ok, {atom(), wrap_opts()}} | {:error, Exception.t()}
@@ -153,25 +185,11 @@ defmodule SensitiveData.Wrapper do
       @doc """
       Returns the redacted equivalent of the sensitive term within `wrapper`.
 
-      See `redactor/1`.
+      See `c:SensitiveData.Wrapper.to_redacted/1`.
       """
       @spec to_redacted(t()) :: term()
       def to_redacted(%__MODULE__{} = wrapper),
         do: SensitiveData.Wrapper.Impl.to_redacted(wrapper)
-
-      # There is no example provided here, as this is overridable.
-      # If this function gets overridden but no `@doc` is provided, the content
-      # here is used: having an incorrect example copied over would be
-      # confusing.
-      @doc """
-      Returns a redacted equivalent of the provided sensitive `term`.
-
-      See `to_redacted/1`.
-      """
-      @spec redactor(term()) :: term()
-      def redactor(term), do: SensitiveData.Redacted
-
-      defoverridable redactor: 1
     end
   end
 end

@@ -26,6 +26,7 @@ defmodule SensitiveData.Wrapper.Impl do
   import SensitiveData.DataType, only: [data_type: 1]
   import SensitiveData.Guards, only: [is_sensitive: 1]
 
+  alias SensitiveData.Redaction
   alias SensitiveData.Wrapper
 
   @spec wrap(term, Keyword.t()) :: Wrapper.t()
@@ -66,21 +67,13 @@ defmodule SensitiveData.Wrapper.Impl do
        when is_sensitive(wrapper) and is_function(fun, 1) do
     updated_data = SensitiveData.execute(fn -> wrapper |> unwrap() |> fun.() end)
 
-    new_label = Keyword.get(opts, :label, wrapper.label)
-    new_redactor = Keyword.get(opts, :redactor, wrapper.__priv__.redactor)
-
-    %mod{} = wrapper
-
-    redacted =
-      case new_redactor do
-        nil -> apply(mod, :redactor, [updated_data])
-        _ -> new_redactor.(updated_data)
-      end
+    new_label = get_label(wrapper, opts, updated_data)
+    new_redactor = get_redactor(wrapper, opts)
 
     %{
       wrapper
       | label: new_label,
-        redacted: redacted,
+        redacted: new_redactor.(updated_data),
         __priv__: %{
           wrapper.__priv__
           | data_provider: fn -> updated_data end,
@@ -88,6 +81,33 @@ defmodule SensitiveData.Wrapper.Impl do
             redactor: new_redactor
         }
     }
+  end
+
+  @spec get_label(Wrapper.t(), Keyword.t(), term()) :: term()
+  defp get_label(wrapper, opts, updated_data) when is_sensitive(wrapper) and is_list(opts) do
+    with nil <- Keyword.get(opts, :label),
+         nil = wrapper.label do
+      labeler = get_fun_or_default(wrapper, :labeler)
+      labeler.(updated_data)
+    end
+  end
+
+  @spec get_redactor(Wrapper.t(), Keyword.t()) :: Redaction.redactor()
+  defp get_redactor(wrapper, opts) when is_sensitive(wrapper) and is_list(opts) do
+    with nil <- Keyword.get(opts, :redactor),
+         nil = wrapper.__priv__.redactor do
+      get_fun_or_default(wrapper, :redactor)
+    end
+  end
+
+  @spec get_fun_or_default(Wrapper.t(), atom()) :: (term() -> term())
+  defp get_fun_or_default(wrapper, fun_name) when is_sensitive(wrapper) and is_atom(fun_name) do
+    %mod{} = wrapper
+
+    case(function_exported?(mod, fun_name, 1)) do
+      true -> fn term -> apply(mod, fun_name, [term]) end
+      false -> fn _ -> nil end
+    end
   end
 
   @spec unwrap(struct()) :: term()
