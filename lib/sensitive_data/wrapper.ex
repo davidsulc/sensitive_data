@@ -153,7 +153,7 @@ defmodule SensitiveData.Wrapper do
       @doc """
       Returns the redacted equivalent of the sensitive term within `wrapper`.
 
-      See `redact_term/1`.
+      See `redactor/1`.
       """
       @spec to_redacted(t()) :: term()
       def to_redacted(%__MODULE__{} = wrapper),
@@ -168,10 +168,10 @@ defmodule SensitiveData.Wrapper do
 
       See `to_redacted/1`.
       """
-      @spec redact_term(term()) :: term()
-      def redact_term(term), do: SensitiveData.Redacted
+      @spec redactor(term()) :: term()
+      def redactor(term), do: SensitiveData.Redacted
 
-      defoverridable redact_term: 1
+      defoverridable redactor: 1
     end
   end
 end

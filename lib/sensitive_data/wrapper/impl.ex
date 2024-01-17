@@ -73,7 +73,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
     redacted =
       case new_redactor do
-        nil -> apply(mod, :redact_term, [updated_data])
+        nil -> apply(mod, :redactor, [updated_data])
         _ -> new_redactor.(updated_data)
       end
 

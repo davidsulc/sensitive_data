@@ -94,16 +94,16 @@ defmodule SensitiveData.Redaction do
   @spec redact_exception_with(Exception.t(), exception_redactor_fun()) :: Exception.t()
   defp redact_exception_with(e, redactor_fun) do
     e
-    |> redact_term(redactor_fun)
+    |> redactor(redactor_fun)
     |> redact_args(redactor_fun)
   end
 
-  @spec redact_term(Exception.t(), exception_redactor_fun()) :: Exception.t()
+  @spec redactor(Exception.t(), exception_redactor_fun()) :: Exception.t()
 
-  defp redact_term(%{term: term} = e, redactor_fun) when is_function(redactor_fun, 2),
+  defp redactor(%{term: term} = e, redactor_fun) when is_function(redactor_fun, 2),
     do: %{e | term: redactor_fun.(term, :term)}
 
-  defp redact_term(e, _redactor_fun), do: e
+  defp redactor(e, _redactor_fun), do: e
 
   @spec redact_args(Exception.t(), exception_redactor_fun()) :: Exception.t()
 
