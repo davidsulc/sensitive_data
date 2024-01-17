@@ -133,13 +133,8 @@ defmodule SensitiveData.Wrapper do
   def from_spec!({mod, opts}, raw_data),
     do: SensitiveData.execute(fn -> apply(mod, :wrap, [raw_data | [opts]]) end)
 
-  defmacro __using__(macro_opts) do
-    allowed_macro_opts = [:default_label, :default_redactor]
-
-    quote bind_quoted: [
-            allowed_macro_opts: allowed_macro_opts,
-            macro_opts: macro_opts
-          ] do
+  defmacro __using__(_) do
+    quote do
       @typedoc ~s"""
       An instance of this wrapper.
       """
@@ -152,16 +147,6 @@ defmodule SensitiveData.Wrapper do
 
       @public_fields [:label, :redactor]
 
-      @default_opts macro_opts
-                    |> Keyword.take(allowed_macro_opts)
-                    |> Keyword.new(fn {k, v} ->
-                      case k do
-                        :default_label -> {:label, v}
-                        :default_redactor -> {:redactor, v}
-                        _ -> {k, v}
-                      end
-                    end)
-
       @doc """
       Wraps the sensitive `term` to prevent unwanted data leaks.
 
@@ -170,7 +155,7 @@ defmodule SensitiveData.Wrapper do
       @spec wrap(term, list) :: t()
       def wrap(term, opts \\ []) do
         SensitiveData.Wrapper.Impl.wrap(term,
-          into: {__MODULE__, Keyword.merge(@default_opts, opts)}
+          into: {__MODULE__, Keyword.take(opts, [:label, :redactor])}
         )
       end
 
