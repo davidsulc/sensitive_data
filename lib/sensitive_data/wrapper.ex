@@ -135,6 +135,8 @@ defmodule SensitiveData.Wrapper do
 
   defmacro __using__(_) do
     quote do
+      @behaviour SensitiveData.Wrapper
+
       @typedoc ~s"""
       An instance of this wrapper.
       """
@@ -152,6 +154,7 @@ defmodule SensitiveData.Wrapper do
 
       See `c:SensitiveData.Wrapper.wrap/2`.
       """
+      @impl SensitiveData.Wrapper
       @spec wrap(term, list) :: t()
       def wrap(term, opts \\ []) do
         SensitiveData.Wrapper.Impl.wrap(term,
@@ -164,6 +167,7 @@ defmodule SensitiveData.Wrapper do
 
       See `c:SensitiveData.Wrapper.unwrap/1`.
       """
+      @impl SensitiveData.Wrapper
       @spec unwrap(t()) :: term()
       def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.unwrap(wrapper)
 
@@ -172,6 +176,7 @@ defmodule SensitiveData.Wrapper do
 
       See `c:SensitiveData.Wrapper.to_redacted/1`.
       """
+      @impl SensitiveData.Wrapper
       @spec to_redacted(t()) :: term()
       def to_redacted(%__MODULE__{} = wrapper),
         do: SensitiveData.Wrapper.Impl.to_redacted(wrapper)
