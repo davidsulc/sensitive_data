@@ -1,6 +1,16 @@
 defmodule SensitiveData do
   @moduledoc """
   Documentation for `SensitiveData`.
+
+  ## Further Considerations
+
+  TODO
+
+  - add'l SEC WG recommendations
+    - flag process as sensitive
+    - impl Inspect for any struct w/ sensitive data
+    - impl format state
+    - etc.
   """
 
   alias SensitiveData.Redaction

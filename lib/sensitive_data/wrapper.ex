@@ -5,6 +5,8 @@ defmodule SensitiveData.Wrapper do
   ## Labeling and Redacting
 
   TODO
+
+  TODO: document can use label for matching
   """
 
   alias SensitiveData.Redaction
