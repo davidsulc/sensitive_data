@@ -7,8 +7,11 @@ defmodule SensitiveData.Wrapper do
   TODO
 
   TODO: document can use label for matching
+
+  TODO document __using__: allow_instance_label, etc.
   """
 
+  require Logger
   alias SensitiveData.Redaction
 
   @typedoc """
@@ -135,9 +138,21 @@ defmodule SensitiveData.Wrapper do
   def from_spec!({mod, opts}, raw_data),
     do: SensitiveData.execute(fn -> apply(mod, :wrap, [raw_data | [opts]]) end)
 
-  defmacro __using__(_) do
-    quote do
+  defmacro __using__(opts) do
+    allow_instance_label = Keyword.get(opts, :allow_instance_label, false)
+    allow_instance_redactor = Keyword.get(opts, :allow_instance_redactor, false)
+
+    quote bind_quoted: [
+            allow_instance_label: allow_instance_label,
+            allow_instance_redactor: allow_instance_redactor
+          ] do
       @behaviour SensitiveData.Wrapper
+
+      require Logger
+
+      @allowable_opts [:label, :redactor]
+      @instance_label_allowed allow_instance_label
+      @instance_redactor_allowed allow_instance_redactor
 
       @typedoc ~s"""
       An instance of this wrapper.
@@ -146,8 +161,6 @@ defmodule SensitiveData.Wrapper do
 
       @derive {Inspect, only: [:label, :redacted], optional: [:label, :redacted]}
       defstruct [:redacted, :label, :__priv__]
-
-      # TODO compile flag to allow/forbid per-instance redactors
 
       @public_fields [:label, :redactor]
 
@@ -160,8 +173,36 @@ defmodule SensitiveData.Wrapper do
       @spec wrap(term, list) :: t()
       def wrap(term, opts \\ []) do
         SensitiveData.Wrapper.Impl.wrap(term,
-          into: {__MODULE__, Keyword.take(opts, [:label, :redactor])}
+          into: {__MODULE__, filter_wrapper_opts(opts)}
         )
+      end
+
+      @spec filter_wrapper_opts(Keyword.t()) :: SensitiveData.Wrapper.wrap_opts()
+      defp filter_wrapper_opts(opts) when is_list(opts) do
+        {filtered, dropped} = Keyword.split(opts, @allowable_opts)
+
+        unless dropped == [],
+          do:
+            Logger.warning("""
+            dropping invalid options in call to #{__MODULE__}.wrap/2:
+
+              #{dropped |> Keyword.keys() |> inspect()}
+            """)
+
+        {allowed, disallowed} =
+          Keyword.split_with(filtered, fn {k, _v} ->
+            Keyword.get([label: @instance_label_allowed, redactor: @instance_redactor_allowed], k)
+          end)
+
+        unless disallowed == [],
+          do:
+            Logger.warning("""
+            dropping disallowed options in call to #{__MODULE__}.wrap/2:
+
+              #{disallowed |> Keyword.keys() |> inspect()}
+            """)
+
+        allowed
       end
 
       @doc """

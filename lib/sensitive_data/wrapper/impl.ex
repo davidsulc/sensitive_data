@@ -86,7 +86,7 @@ defmodule SensitiveData.Wrapper.Impl do
   @spec get_label(Wrapper.t(), Keyword.t(), term()) :: term()
   defp get_label(wrapper, opts, updated_data) when is_sensitive(wrapper) and is_list(opts) do
     with nil <- Keyword.get(opts, :label),
-         nil = wrapper.label do
+         nil <- wrapper.label do
       labeler = get_fun_or_default(wrapper, :labeler)
       labeler.(updated_data)
     end
@@ -95,7 +95,7 @@ defmodule SensitiveData.Wrapper.Impl do
   @spec get_redactor(Wrapper.t(), Keyword.t()) :: Redaction.redactor()
   defp get_redactor(wrapper, opts) when is_sensitive(wrapper) and is_list(opts) do
     with nil <- Keyword.get(opts, :redactor),
-         nil = wrapper.__priv__.redactor do
+         nil <- wrapper.__priv__.redactor do
       get_fun_or_default(wrapper, :redactor)
     end
   end
