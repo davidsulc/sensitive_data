@@ -5,7 +5,7 @@ defmodule SensitiveData.Redaction do
   > ### Tip {: .tip}
   >
   >In typical use, there's no need to call these functions directly:
-  >`SensitiveData.execute/1` should be used instead as it will handle
+  >`SensitiveData.exec/1` should be used instead as it will handle
   >redaction duties and call the necessary functions from this module.
   """
 

@@ -16,7 +16,7 @@ defmodule SensitiveData do
   alias SensitiveData.Redaction
   alias SensitiveData.Wrapper
 
-  @type execute_opts :: [
+  @type exec_opts :: [
           exception_redaction: Redaction.exception_redaction_strategy(),
           stacktrace_redaction: Redaction.stacktrace_redaction_strategy(),
           into: Wrapper.spec()
@@ -44,12 +44,12 @@ defmodule SensitiveData do
       iex> Map.get("SOME_PASSWORD", :foobar)
       ** (BadMapError) expected a map, got: "SOME_PASSWORD"
 
-      iex> SensitiveData.execute(fn ->
+      iex> SensitiveData.exec(fn ->
       ...>   Map.get("SOME_PASSWORD", :foobar)
       ...> end)
       ** (BadMapError) expected a map, got: SensitiveData.Redacted
 
-      iex> SensitiveData.execute(fn ->
+      iex> SensitiveData.exec(fn ->
       ...>     Map.get("SOME_PASSWORD", :foobar)
       ...>   end,
       ...>   exception_redaction: fn val, :term ->
@@ -67,12 +67,12 @@ defmodule SensitiveData do
   Passing the execution result to a `SecretData` module implementing
   the `SensitiveData.Wrapper` behaviour:
 
-      SensitiveData.execute(fn ->
+      SensitiveData.exec(fn ->
         System.fetch_env!("DATABASE_PASSWORD")
       end, into: SecretData)
   """
-  @spec execute((-> result), execute_opts()) :: result when result: term() | no_return()
-  def execute(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do
+  @spec exec((-> result), exec_opts()) :: result when result: term() | no_return()
+  def exec(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do
     raw_data =
       try do
         fun.()
@@ -110,7 +110,7 @@ defmodule SensitiveData do
   @spec gets_sensitive(prompt, into: Wrapper.spec()) :: user_input
         when prompt: String.t(), user_input: String.t()
   def gets_sensitive(prompt, opts \\ []) do
-    execute(fn ->
+    exec(fn ->
       SensitiveData.IO.gets_sensitive(prompt)
       |> maybe_wrap(opts)
     end)

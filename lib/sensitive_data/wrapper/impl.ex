@@ -31,7 +31,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec wrap(term, Keyword.t()) :: Wrapper.t()
   def wrap(term, opts) when is_list(opts) do
-    SensitiveData.execute(fn ->
+    SensitiveData.exec(fn ->
       into = Keyword.fetch!(opts, :into)
 
       with {:ok, {wrapper_mod, wrapper_opts}} <- Wrapper.spec(into) do
@@ -65,7 +65,7 @@ defmodule SensitiveData.Wrapper.Impl do
         ) :: Wrapper.t()
   defp update_data_payload(wrapper, fun, opts \\ [])
        when is_sensitive(wrapper) and is_function(fun, 1) do
-    updated_data = SensitiveData.execute(fn -> wrapper |> unwrap() |> fun.() end)
+    updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
 
     new_label = get_label(wrapper, opts, updated_data)
     new_redactor = get_redactor(wrapper, opts)

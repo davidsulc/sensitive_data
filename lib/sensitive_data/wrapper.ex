@@ -136,7 +136,7 @@ defmodule SensitiveData.Wrapper do
 
   @doc false
   def from_spec!({mod, opts}, raw_data),
-    do: SensitiveData.execute(fn -> apply(mod, :wrap, [raw_data | [opts]]) end)
+    do: SensitiveData.exec(fn -> apply(mod, :wrap, [raw_data | [opts]]) end)
 
   defmacro __using__(opts) do
     allow_instance_label = Keyword.get(opts, :allow_instance_label, false)

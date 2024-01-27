@@ -90,7 +90,7 @@ So function calls that deal with sensitive data need to be wrapped in a
 stack trace, and they must also ensure that sensitive data is removed
 from exception structs.
 
-`SensitiveData.execute/1` will do that for you:
+`SensitiveData.exec/1` will do that for you:
 
 ```sh
 exception: %BadMapError{term: SensitiveData.Redacted}
@@ -100,7 +100,7 @@ stacktrace: [
   {:elixir_eval, :__FILE__, 1, [file: ~c"iex", line: 4]},
   {:elixir, :"-eval_external_handler/1-fun-2-", 4,
    [file: ~c"src/elixir.erl", line: 376]},
-  {SensitiveData, :execute, 1, [file: ~c"lib/sensitive_data.ex", line: 22]},
+  {SensitiveData, :exec, 1, [file: ~c"lib/sensitive_data.ex", line: 22]},
   {:elixir, :"-eval_external_handler/1-fun-2-", 4,
    [file: ~c"src/elixir.erl", line: 376]},
   {Demo, :inspect_and_reraise, 1, [file: ~c"iex", line: 7]},

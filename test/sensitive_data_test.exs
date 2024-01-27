@@ -12,7 +12,7 @@ defmodule SensitiveDataTest do
     end
   end
 
-  test "execute/1" do
+  test "exec/1" do
     secret = "SECRET"
     test_action = fn -> Map.get(secret, :bad_key) end
 
@@ -23,9 +23,9 @@ defmodule SensitiveDataTest do
 
     assert String.contains?(stacktrace, secret)
 
-    # secrets don't leak from within `execute`
+    # secrets don't leak from within `exec`
     {error_message, stacktrace} =
-      capture_exception_io(fn -> execute(test_action) end)
+      capture_exception_io(fn -> exec(test_action) end)
 
     refute String.contains?(error_message, secret)
 
@@ -37,7 +37,7 @@ defmodule SensitiveDataTest do
 
     {error_message, stacktrace} =
       capture_exception_io(fn ->
-        execute(test_action,
+        exec(test_action,
           exception_redaction: fn _val, _term -> custom_redaction_exception end,
           stacktrace_redaction: fn _args -> custom_redaction_stacktrace end
         )
