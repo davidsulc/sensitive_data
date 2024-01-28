@@ -11,7 +11,6 @@ defmodule SensitiveData.Wrapper do
   TODO document __using__: allow_instance_label, etc.
   """
 
-  require Logger
   alias SensitiveData.Redaction
 
   @typedoc """
@@ -33,17 +32,27 @@ defmodule SensitiveData.Wrapper do
           :redacted => term(),
           optional(atom()) => term()
         }
+
   @type spec :: wrapper_module() | {wrapper_module(), wrap_opts()}
+
   @typedoc """
   A module implementing the `c:wrap/2` callback.
   """
   @type wrapper_module :: atom()
+
   @typedoc """
   Wrapping options.
 
   See `c:SensitiveData.Wrapper.wrap/2`.
   """
   @type wrap_opts :: [label: term(), redactor: Redaction.redactor()]
+
+  @typedoc """
+  Execution options.
+
+  See `c:SensitiveData.Wrapper.exec/2`.
+  """
+  @type exec_opts :: [into: spec()]
 
   @doc """
   Wraps the sensitive `term` to prevent unwanted data leaks.
@@ -79,6 +88,23 @@ defmodule SensitiveData.Wrapper do
   Returns the sensitive term within `wrapper`.
   """
   @callback unwrap(wrapper :: t()) :: term()
+
+  @doc """
+  Invokes the callback on the wrapped sensitive term and returns the wrapped result.
+  """
+  @callback map(wrapper :: t(), (sensitive_data_orig -> sensitive_data_transformed), wrap_opts()) ::
+              t()
+            when sensitive_data_orig: term(), sensitive_data_transformed: term()
+
+  @doc """
+  Returns the result of the callback invoked with the sensitive term.
+
+  Executes the provided function with the sensitive term provided as the function argument, ensuring no data leaks in case of error.
+
+  The unwrapped result of the callback exeution is then returned.
+  """
+  @callback exec(wrapper :: t(), (sensitive_data -> result), exec_opts()) :: result
+            when sensitive_data: term(), result: term()
 
   @doc """
   Returns the redacted equivalent of the sensitive term within `wrapper`.
@@ -171,23 +197,12 @@ defmodule SensitiveData.Wrapper do
       """
       @impl SensitiveData.Wrapper
       @spec wrap(term, list) :: t()
-      def wrap(term, opts \\ []) do
-        SensitiveData.Wrapper.Impl.wrap(term,
-          into: {__MODULE__, filter_wrapper_opts(opts)}
-        )
-      end
+      def wrap(term, opts \\ []),
+        do: SensitiveData.Wrapper.Impl.wrap(term, into: {__MODULE__, filter_wrapper_opts(opts)})
 
       @spec filter_wrapper_opts(Keyword.t()) :: SensitiveData.Wrapper.wrap_opts()
       defp filter_wrapper_opts(opts) when is_list(opts) do
-        {filtered, dropped} = Keyword.split(opts, @allowable_opts)
-
-        unless dropped == [],
-          do:
-            Logger.warning("""
-            dropping invalid options in call to #{__MODULE__}.wrap/2:
-
-              #{dropped |> Keyword.keys() |> inspect()}
-            """)
+        filtered = SensitiveData.Wrapper.Impl.filter_opts(opts, @allowable_opts)
 
         {allowed, disallowed} =
           Keyword.split_with(filtered, fn {k, _v} ->
@@ -213,6 +228,37 @@ defmodule SensitiveData.Wrapper do
       @impl SensitiveData.Wrapper
       @spec unwrap(t()) :: term()
       def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.unwrap(wrapper)
+
+      @doc """
+      Transforms the sensitive term within `wrapper`.
+
+      See `c:SensitiveData.Wrapper.map/3`.
+      """
+      @impl SensitiveData.Wrapper
+      @spec map(t(), (term() -> term()), SensitiveData.Wrapper.wrap_opts()) :: term()
+      def map(%__MODULE__{} = wrapper, fun, opts \\ []),
+        # TODO: check disallowed opts (via `use` options) don't get applied
+        do: SensitiveData.Wrapper.Impl.map(wrapper, fun, filter_wrapper_opts(opts))
+
+      @doc """
+      Returns the result of executing the callback with the sensitive term within `wrapper`.
+
+      See `c:SensitiveData.Wrapper.exec/3`.
+      """
+      @impl SensitiveData.Wrapper
+      @spec exec(t(), (term() -> term()), SensitiveData.Wrapper.exec_opts()) :: term()
+      def exec(%__MODULE__{} = wrapper, fun, opts \\ []) do
+        # TODO: check disallowed opts (via `use` options) don't get applied
+        into_opts = SensitiveData.Wrapper.Impl.filter_opts(opts, [:into])
+
+        filtered_opts =
+          case Keyword.get(into_opts, :into) do
+            nil -> into_opts
+            wrapper_opts -> Keyword.replace(into_opts, :into, filter_wrapper_opts(wrapper_opts))
+          end
+
+        SensitiveData.Wrapper.Impl.exec(wrapper, fun, filtered_opts)
+      end
 
       @doc """
       Returns the redacted equivalent of the sensitive term within `wrapper`.

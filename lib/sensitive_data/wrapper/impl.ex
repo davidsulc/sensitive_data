@@ -26,8 +26,12 @@ defmodule SensitiveData.Wrapper.Impl do
   import SensitiveData.DataType, only: [data_type: 1]
   import SensitiveData.Guards, only: [is_sensitive: 1]
 
+  require Logger
+
   alias SensitiveData.Redaction
   alias SensitiveData.Wrapper
+
+  @wrapper_opts_names [:label, :redactor]
 
   @spec wrap(term, Keyword.t()) :: Wrapper.t()
   def wrap(term, opts) when is_list(opts) do
@@ -35,13 +39,31 @@ defmodule SensitiveData.Wrapper.Impl do
       into = Keyword.fetch!(opts, :into)
 
       with {:ok, {wrapper_mod, wrapper_opts}} <- Wrapper.spec(into) do
+        filtered_opts = filter_opts(wrapper_opts, @wrapper_opts_names)
+
         wrapper_mod
-        |> struct!(into_struct_shape(wrapper_opts))
+        |> struct!(into_struct_shape(filtered_opts))
         |> update_data_payload(fn _ -> term end)
       else
         {:error, e} -> raise e
       end
     end)
+  end
+
+  @doc false
+  @spec filter_opts(Keyword.t(), [atom()]) :: SensitiveData.Wrapper.wrap_opts()
+  def filter_opts(opts, allowable_opts) when is_list(opts) and is_list(allowable_opts) do
+    {filtered, dropped} = Keyword.split(opts, allowable_opts)
+
+    unless dropped == [],
+      do:
+        Logger.warning("""
+        dropping invalid options in call to #{__MODULE__}.wrap/2:
+
+          #{dropped |> Keyword.keys() |> inspect()}
+        """)
+
+    filtered
   end
 
   @spec into_struct_shape(Wrapper.wrap_opts()) :: map()
@@ -113,6 +135,50 @@ defmodule SensitiveData.Wrapper.Impl do
   @spec unwrap(struct()) :: term()
   def unwrap(%{} = wrapper) when is_sensitive(wrapper),
     do: wrapper.__priv__.data_provider.()
+
+  @spec map(struct(), (term() -> term())) :: struct()
+  def map(%{} = wrapper, fun, opts \\ []) when is_sensitive(wrapper) do
+    SensitiveData.exec(fn ->
+      {mod, current_opts} = spec_from(wrapper)
+      into_spec = {mod, Keyword.merge(current_opts, filter_opts(opts, @wrapper_opts_names))}
+
+      exec(wrapper, fun, into: into_spec)
+    end)
+  end
+
+  @spec spec_from(struct()) :: Wrapper.spec()
+  defp spec_from(%{} = wrapper) when is_sensitive(wrapper) do
+    %mod{} = wrapper
+    %{label: label, __priv__: %{redactor: redactor}} = wrapper
+
+    opts = Keyword.reject([label: label, redactor: redactor], fn {_k, v} -> is_nil(v) end)
+
+    {mod, opts}
+  end
+
+  @spec exec(struct(), (term() -> result)) :: result when result: term()
+  def exec(%{} = wrapper, fun, opts \\ []) when is_sensitive(wrapper) do
+    into_config =
+      SensitiveData.exec(fn ->
+        case filter_opts(opts, [:into]) |> Keyword.get(:into) do
+          nil ->
+            []
+
+          {mod, into_opts} when is_atom(mod) and is_list(opts) ->
+            [into: {mod, filter_opts(into_opts, @wrapper_opts_names)}]
+
+          mod when is_atom(mod) ->
+            [into: mod]
+        end
+      end)
+
+    SensitiveData.exec(
+      fn ->
+        wrapper |> unwrap() |> fun.()
+      end,
+      into_config
+    )
+  end
 
   @spec to_redacted(struct()) :: term()
   def to_redacted(%{} = wrapper) when is_sensitive(wrapper), do: wrapper.redacted
