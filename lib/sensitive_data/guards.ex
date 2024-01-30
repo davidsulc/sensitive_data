@@ -27,7 +27,10 @@ defmodule SensitiveData.Guards do
 
   Allowed in guard tests.
   """
-  defguard is_sensitive(term) when is_struct(term) and term.__priv__.structure == SensitiveData
+  defguard is_sensitive(term)
+           when is_struct(term) and is_map_key(term, :__priv__) and
+                  is_map_key(term.__priv__, :structure) and
+                  term.__priv__.structure == SensitiveData
 
   @doc """
   Returns `true` if `term` is a `t:SensitiveData.Wrapper.t/0` containing a list;
