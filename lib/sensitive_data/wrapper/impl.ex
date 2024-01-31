@@ -100,7 +100,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
     updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
 
-    new_label = get_label(wrapper, filtered_opts, updated_data)
+    new_label = get_label(wrapper, filtered_opts)
     new_redactor = get_redactor(wrapper, filtered_opts)
 
     %{
@@ -116,14 +116,9 @@ defmodule SensitiveData.Wrapper.Impl do
     }
   end
 
-  @spec get_label(Wrapper.t(), Keyword.t(), term()) :: term()
-  defp get_label(wrapper, opts, updated_data) when is_sensitive(wrapper) and is_list(opts) do
-    with nil <- Keyword.get(opts, :label),
-         nil <- wrapper.label do
-      labeler = get_fun_or_default(wrapper, :labeler)
-      labeler.(updated_data)
-    end
-  end
+  @spec get_label(Wrapper.t(), Keyword.t()) :: term()
+  defp get_label(wrapper, opts) when is_sensitive(wrapper) and is_list(opts),
+    do: Keyword.get(opts, :label, wrapper.label)
 
   @spec get_redactor(Wrapper.t(), Keyword.t()) :: Redaction.redactor()
   defp get_redactor(wrapper, opts) when is_sensitive(wrapper) and is_list(opts) do
@@ -133,8 +128,8 @@ defmodule SensitiveData.Wrapper.Impl do
     end
   end
 
-  @spec get_fun_or_default(Wrapper.t(), atom()) :: (term() -> term())
-  defp get_fun_or_default(wrapper, fun_name, default_return_value \\ nil)
+  @spec get_fun_or_default(Wrapper.t(), atom(), term()) :: (term() -> term())
+  defp get_fun_or_default(wrapper, fun_name, default_return_value)
        when is_sensitive(wrapper) and is_atom(fun_name) do
     %mod{} = wrapper
 
