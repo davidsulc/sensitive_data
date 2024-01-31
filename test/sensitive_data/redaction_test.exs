@@ -1,5 +1,5 @@
 defmodule SensitiveData.RedactionTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest SensitiveData.Redaction
 
   import SensitiveData.Redaction

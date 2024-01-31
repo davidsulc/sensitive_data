@@ -1,5 +1,5 @@
 defmodule SensitiveData.GuardsTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   import ExUnitProperties
 
   import StreamData
