@@ -44,7 +44,8 @@ defmodule SensitiveData.Wrapper.Impl do
 
         wrapper_mod
         |> struct!(into_struct_shape(filtered_opts))
-        |> update_data_payload(fn _ -> term end, filtered_opts)
+        # |> update_data_payload(fn _ -> term end, filtered_opts)
+        |> map(fn _ -> term end, filtered_opts)
       else
         {:error, e} -> raise e
       end
@@ -81,17 +82,26 @@ defmodule SensitiveData.Wrapper.Impl do
     }
   end
 
-  @spec update_data_payload(
+  @spec unwrap(struct()) :: term()
+  def unwrap(%{} = wrapper) when is_sensitive(wrapper),
+    do: wrapper.__priv__.data_provider.()
+
+  @spec map(
           Wrapper.t(),
           (existing_value :: term() -> new_value :: term()),
           Keyword.t()
         ) :: Wrapper.t()
-  defp update_data_payload(wrapper, fun, opts)
-       when is_sensitive(wrapper) and is_function(fun, 1) do
+  def map(%{} = wrapper, fun, opts)
+      when is_sensitive(wrapper) and is_function(fun, 1) do
+    %wrapper_mod{} = wrapper
+
+    filtered_opts =
+      apply(wrapper_mod, :filter_wrap_opts, [filter_opts(opts, @wrapper_opts_names)])
+
     updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
 
-    new_label = get_label(wrapper, opts, updated_data)
-    new_redactor = get_redactor(wrapper, opts)
+    new_label = get_label(wrapper, filtered_opts, updated_data)
+    new_redactor = get_redactor(wrapper, filtered_opts)
 
     %{
       wrapper
@@ -132,30 +142,6 @@ defmodule SensitiveData.Wrapper.Impl do
       true -> fn term -> apply(mod, fun_name, [term]) end
       false -> fn _ -> default_return_value end
     end
-  end
-
-  @spec unwrap(struct()) :: term()
-  def unwrap(%{} = wrapper) when is_sensitive(wrapper),
-    do: wrapper.__priv__.data_provider.()
-
-  @spec map(struct(), (term() -> term())) :: struct()
-  def map(%{} = wrapper, fun, opts \\ []) when is_sensitive(wrapper) do
-    SensitiveData.exec(fn ->
-      {mod, current_opts} = spec_from(wrapper)
-      into_spec = {mod, Keyword.merge(current_opts, filter_opts(opts, @wrapper_opts_names))}
-
-      exec(wrapper, fun, into: into_spec)
-    end)
-  end
-
-  @spec spec_from(struct()) :: Wrapper.spec()
-  defp spec_from(%{} = wrapper) when is_sensitive(wrapper) do
-    %mod{} = wrapper
-    %{label: label, __priv__: %{redactor: redactor}} = wrapper
-
-    opts = Keyword.reject([label: label, redactor: redactor], fn {_k, v} -> is_nil(v) end)
-
-    {mod, opts}
   end
 
   @spec exec(struct(), (term() -> result)) :: result when result: term()
