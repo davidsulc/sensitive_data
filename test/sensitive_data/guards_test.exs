@@ -5,6 +5,8 @@ defmodule SensitiveData.GuardsTest do
   import StreamData
   import SensitiveData.Guards
 
+  alias Wrappers.SensiData
+
   @exception_names_with_message [
     ArithmeticError,
     ArgumentError,
@@ -66,6 +68,7 @@ defmodule SensitiveData.GuardsTest do
       generator_names = unquote(generators)
 
       check all(
+              # TODO use separate clauses (and refactor other tests for same reason)
               {data_match, data_no_match} <-
                 {generators(generator_names), generators(except: generator_names)}
             ) do

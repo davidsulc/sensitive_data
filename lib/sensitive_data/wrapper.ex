@@ -198,10 +198,11 @@ defmodule SensitiveData.Wrapper do
       @impl SensitiveData.Wrapper
       @spec wrap(term, list) :: t()
       def wrap(term, opts \\ []),
-        do: SensitiveData.Wrapper.Impl.wrap(term, into: {__MODULE__, filter_wrapper_opts(opts)})
+        do: SensitiveData.Wrapper.Impl.wrap(term, into: {__MODULE__, filter_wrap_opts(opts)})
 
-      @spec filter_wrapper_opts(Keyword.t()) :: SensitiveData.Wrapper.wrap_opts()
-      defp filter_wrapper_opts(opts) when is_list(opts) do
+      @doc false
+      @spec filter_wrap_opts(Keyword.t()) :: SensitiveData.Wrapper.wrap_opts()
+      def filter_wrap_opts(opts) when is_list(opts) do
         filtered = SensitiveData.Wrapper.Impl.filter_opts(opts, @allowable_opts)
 
         {allowed, disallowed} =
@@ -238,7 +239,7 @@ defmodule SensitiveData.Wrapper do
       @spec map(t(), (term() -> term()), SensitiveData.Wrapper.wrap_opts()) :: term()
       def map(%__MODULE__{} = wrapper, fun, opts \\ []),
         # TODO: check disallowed opts (via `use` options) don't get applied
-        do: SensitiveData.Wrapper.Impl.map(wrapper, fun, filter_wrapper_opts(opts))
+        do: SensitiveData.Wrapper.Impl.map(wrapper, fun, filter_wrap_opts(opts))
 
       @doc """
       Returns the result of executing the callback with the sensitive term within `wrapper`.
@@ -254,7 +255,7 @@ defmodule SensitiveData.Wrapper do
         filtered_opts =
           case Keyword.get(into_opts, :into) do
             nil -> into_opts
-            wrapper_opts -> Keyword.replace(into_opts, :into, filter_wrapper_opts(wrapper_opts))
+            wrapper_opts -> Keyword.replace(into_opts, :into, filter_wrap_opts(wrapper_opts))
           end
 
         SensitiveData.Wrapper.Impl.exec(wrapper, fun, filtered_opts)

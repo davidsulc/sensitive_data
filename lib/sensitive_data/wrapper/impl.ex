@@ -39,11 +39,12 @@ defmodule SensitiveData.Wrapper.Impl do
       into = Keyword.fetch!(opts, :into)
 
       with {:ok, {wrapper_mod, wrapper_opts}} <- Wrapper.spec(into) do
-        filtered_opts = filter_opts(wrapper_opts, @wrapper_opts_names)
+        filtered_opts =
+          apply(wrapper_mod, :filter_wrap_opts, [filter_opts(wrapper_opts, @wrapper_opts_names)])
 
         wrapper_mod
         |> struct!(into_struct_shape(filtered_opts))
-        |> update_data_payload(fn _ -> term end)
+        |> update_data_payload(fn _ -> term end, filtered_opts)
       else
         {:error, e} -> raise e
       end
@@ -85,7 +86,7 @@ defmodule SensitiveData.Wrapper.Impl do
           (existing_value :: term() -> new_value :: term()),
           Keyword.t()
         ) :: Wrapper.t()
-  defp update_data_payload(wrapper, fun, opts \\ [])
+  defp update_data_payload(wrapper, fun, opts)
        when is_sensitive(wrapper) and is_function(fun, 1) do
     updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
 
@@ -118,17 +119,18 @@ defmodule SensitiveData.Wrapper.Impl do
   defp get_redactor(wrapper, opts) when is_sensitive(wrapper) and is_list(opts) do
     with nil <- Keyword.get(opts, :redactor),
          nil <- wrapper.__priv__.redactor do
-      get_fun_or_default(wrapper, :redactor)
+      get_fun_or_default(wrapper, :redactor, SensitiveData.Redacted)
     end
   end
 
   @spec get_fun_or_default(Wrapper.t(), atom()) :: (term() -> term())
-  defp get_fun_or_default(wrapper, fun_name) when is_sensitive(wrapper) and is_atom(fun_name) do
+  defp get_fun_or_default(wrapper, fun_name, default_return_value \\ nil)
+       when is_sensitive(wrapper) and is_atom(fun_name) do
     %mod{} = wrapper
 
     case(function_exported?(mod, fun_name, 1)) do
       true -> fn term -> apply(mod, fun_name, [term]) end
-      false -> fn _ -> nil end
+      false -> fn _ -> default_return_value end
     end
   end
 

@@ -70,6 +70,10 @@ defmodule SensitiveData do
       SensitiveData.exec(fn ->
         System.fetch_env!("DATABASE_PASSWORD")
       end, into: SecretData)
+
+
+  TODO document into: {Foo, label: ..., redactor: ...} version, but also mention
+  options are ignored unless allowed in call to `use`
   """
   @spec exec((-> result), exec_opts()) :: result when result: term() | no_return()
   def exec(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do

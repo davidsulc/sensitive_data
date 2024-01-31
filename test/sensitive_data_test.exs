@@ -1,8 +1,14 @@
 defmodule SensitiveDataTest do
   use ExUnit.Case, async: true
-  doctest SensitiveData
+  import ExUnit.CaptureLog, only: [capture_log: 1]
+  import ExUnitProperties
 
+  import StreamData
   import SensitiveData
+
+  alias Wrappers.{SensiData, SensiDataCust}
+
+  doctest SensitiveData
 
   defp capture_exception_io(fun) do
     try do
@@ -48,5 +54,32 @@ defmodule SensitiveDataTest do
 
     refute String.contains?(error_message, secret)
     refute String.contains?(stacktrace, secret)
+  end
+
+  test "exec into" do
+    check all(term <- term(), label <- term(), redacted <- string(:printable)) do
+      wrapped = exec(fn -> term end, into: SensiData)
+
+      assert SensiData.unwrap(wrapped) == term
+      assert is_nil(wrapped.label)
+      assert SensiData.to_redacted(wrapped) == SensitiveData.Redacted
+
+      wrapped_with_opts =
+        exec(fn -> term end, into: {SensiDataCust, label: label, redactor: fn _ -> redacted end})
+
+      assert SensiDataCust.unwrap(wrapped_with_opts) == term
+      assert wrapped_with_opts.label == label
+      assert SensiDataCust.to_redacted(wrapped_with_opts) == redacted
+
+      # opts get dropped if not allowed in call to `use`
+      capture_log(fn ->
+        wrapped_with_opts =
+          exec(fn -> term end, into: {SensiData, label: label, redactor: fn _ -> redacted end})
+
+        assert SensiData.unwrap(wrapped_with_opts) == term
+        assert is_nil(wrapped_with_opts.label)
+        assert SensiData.to_redacted(wrapped_with_opts) == SensitiveData.Redacted
+      end)
+    end
   end
 end

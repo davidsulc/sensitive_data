@@ -1,12 +1,9 @@
 defmodule SensitiveData.Wrapper.ImplTest do
   use ExUnit.Case, async: true
-  import ExUnitProperties
 
-  import SensiData
+  doctest SensitiveData.Wrapper
 
-  test "wrap/unwrap yields original value" do
-    check all(data <- StreamData.term()) do
-      assert data == data |> wrap() |> unwrap()
-    end
-  end
+  # the functions in the Wrapper.Impl module are called
+  # by wrapper implementation, so all functions are
+  # tested by SensitiveData.WrapperTest
 end

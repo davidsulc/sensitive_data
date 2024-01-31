@@ -1,3 +1,3 @@
-defmodule SensiData do
+defmodule Wrappers.SensiData do
   use SensitiveData.Wrapper
 end

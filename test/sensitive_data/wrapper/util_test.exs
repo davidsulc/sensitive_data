@@ -5,6 +5,8 @@ defmodule SensitiveData.Wrapper.UtilTest do
   import StreamData
   import SensitiveData.Wrapper.Util
 
+  alias Wrappers.SensiData
+
   doctest SensitiveData.Wrapper.Util
 
   test "sensitive_length/1" do
