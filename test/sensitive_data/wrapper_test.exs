@@ -5,6 +5,9 @@ defmodule SensitiveData.WrapperTest do
 
   import StreamData
 
+  require SensitiveData.Guards
+
+  alias SensitiveData.Guards
   # wrapper intsances used for testing
   alias Wrappers.{SensiData, SensiDataCust}
 
@@ -78,7 +81,45 @@ defmodule SensitiveData.WrapperTest do
     end
   end
 
-  test "exec/3"
+  test "exec/3" do
+    check all(
+            term <- term(),
+            my_wrap_opts <- wrap_opts(),
+            exec_result <- term(),
+            into_opts <- wrap_opts()
+          ) do
+      wrapped = SensiDataCust.wrap(term, my_wrap_opts)
+
+      capture_log(fn ->
+        # check that label and redactor are ignored
+        result =
+          SensiDataCust.exec(wrapped, fn _ -> exec_result end, into: {SensiData, into_opts})
+
+        assert is_nil(result.label)
+        assert result.redacted == SensitiveData.Redacted
+        assert SensiData.unwrap(result) == exec_result
+      end)
+
+      log =
+        capture_log(fn ->
+          wrapped = SensiData.wrap(term)
+
+          # check that label and redactor are applied
+          result =
+            SensiData.exec(wrapped, fn _ -> exec_result end, into: {SensiDataCust, into_opts})
+
+          case get_redactor(into_opts, SensiDataCust) do
+            nil -> assert is_nil(result.redacted)
+            redactor -> assert redactor.(exec_result) == result.redacted
+          end
+
+          assert result.label == Keyword.get(into_opts, :label)
+          assert SensiDataCust.unwrap(result) == exec_result
+        end)
+
+      assert log == ""
+    end
+  end
 
   test "to_redacted/1" do
     check all(data <- term(), redacted <- term()) do
@@ -95,20 +136,75 @@ defmodule SensitiveData.WrapperTest do
     end
   end
 
-  defp get_redactor(opts, %{} = wrapped) do
-    Keyword.get(
-      opts,
+  test "module functions only accept instances from the same module" do
+    # we'll be executing SensiData functions, but with a SensiDataCust instance
+    wrapper_mod = SensiData
+    wrong_wrapper_type = SensiDataCust.wrap(:ok)
+
+    functions_to_test = [
+      exec: [fn _ -> :ok end],
+      map: [fn _ -> :ok end],
+      to_redacted: [],
+      unwrap: []
+    ]
+
+    for [fun, args] <- functions_to_test do
+      assert_raise FunctionClauseError, fn ->
+        apply(wrapper_mod, fun, [wrong_wrapper_type | args])
+      end
+    end
+
+    exported_functions =
+      wrapper_mod.__info__(:functions)
+      |> Keyword.keys()
+      |> Enum.uniq()
+      # reject private functions such as `__struct__`
+      |> Enum.reject(&(&1 |> Atom.to_string() |> String.starts_with?("__")))
+
+    # these are functions that don't expect a module struct instance
+    # (and therefore aren't relevant to this test)
+    ignored_functions = [
+      :filter_wrap_opts,
       :redactor,
-      wrapped.__priv__.redactor || fn _ -> SensitiveData.Redacted end
-    )
+      :wrap
+    ]
+
+    # `--` is right associative
+    remaining = (exported_functions -- ignored_functions) -- Keyword.keys(functions_to_test)
+
+    # if this fails, add the functions to either the `functions_to_test` or the `ignored_functions`
+    assert [] == remaining, "some functions are neither tested nor ignored: #{inspect(remaining)}"
   end
 
-  defp wrap_opts(),
-    do:
-      list_of(
-        one_of([
-          bind(term(), &constant({:label, &1})),
-          bind(term(), fn term -> constant({:redactor, fn _ -> term end}) end)
-        ])
-      )
+  defp get_redactor(opts, wrapper_mod) when is_atom(wrapper_mod) do
+    case Keyword.get(opts, :redactor) do
+      nil ->
+        case function_exported?(wrapper_mod, :redactor, 1) do
+          true -> &wrapper_mod.redactor/1
+          false -> nil
+        end
+
+      redactor ->
+        redactor
+    end
+  end
+
+  defp get_redactor(opts, wrapper) when Guards.is_sensitive(wrapper),
+    do: get_redactor_or_default(opts, wrapper.__priv__.redactor)
+
+  defp get_redactor_or_default(opts, default_redacted),
+    do: Keyword.get(opts, :redactor, default_redacted || fn _ -> SensitiveData.Redacted end)
+
+  defp wrap_opts() do
+    bind(term(), fn label ->
+      bind(term(), fn redaction_result ->
+        bind(integer(0..2), fn count ->
+          [label: label, redactor: fn _ -> redaction_result end]
+          |> Enum.shuffle()
+          |> Enum.take(count)
+          |> constant()
+        end)
+      end)
+    end)
+  end
 end
