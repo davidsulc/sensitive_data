@@ -33,6 +33,15 @@ defmodule SensitiveData.Guards do
                   term.__priv__.structure == SensitiveData
 
   @doc """
+  Returns `true` if `term` is a `t:SensitiveData.Wrapper.t/0` and `struct_name`
+  is the wrapper implementation module; otherwise returns false.
+
+  Allowed in guard tests.
+  """
+  defguard is_sensitive(term, struct_name)
+           when is_sensitive(term) and is_struct(term, struct_name)
+
+  @doc """
   Returns `true` if `term` is a `t:SensitiveData.Wrapper.t/0` containing a list;
   otherwise returns false.
 

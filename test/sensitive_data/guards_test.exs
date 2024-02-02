@@ -50,6 +50,19 @@ defmodule SensitiveData.GuardsTest do
     end
   end
 
+  test "is_sensitive/2 guard" do
+    check all(data <- one_of(Keyword.values(generators()))) do
+      case SensiData.wrap(data) do
+        wrapped
+        when is_sensitive(wrapped, SensiData) and not is_sensitive(wrapped, SensiDataCust) ->
+          :ok
+
+        _ ->
+          flunk("guard failed to work")
+      end
+    end
+  end
+
   for {guard_name, generators} <- [
         {:is_sensitive_atom, [:atom, :boolean, nil]},
         {:is_sensitive_bitstring, [:bitstring, :string]},
