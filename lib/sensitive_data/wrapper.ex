@@ -241,7 +241,6 @@ defmodule SensitiveData.Wrapper do
       @impl SensitiveData.Wrapper
       @spec map(t(), (term() -> term()), SensitiveData.Wrapper.wrap_opts()) :: term()
       def map(%__MODULE__{} = wrapper, fun, opts \\ []),
-        # TODO: check disallowed opts (via `use` options) don't get applied
         do: SensitiveData.Wrapper.Impl.map(wrapper, fun, filter_wrap_opts(opts))
 
       @doc """
