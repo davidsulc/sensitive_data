@@ -18,8 +18,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
     @doc false
     # This is used only so that we have a default value that works,
-    # allowing us to call SensitiveData.Wrapper.Impl.update_data_payload/2
-    # within SensitiveData.Wrapper.Impl.wrap/2 (i.e. during "construction")
+    # allowing us to call map/3 during "construction"
     def data_provider_placeholder(), do: nil
   end
 
@@ -39,8 +38,7 @@ defmodule SensitiveData.Wrapper.Impl do
       into = Keyword.fetch!(opts, :into)
 
       with {:ok, {wrapper_mod, wrapper_opts}} <- Wrapper.spec(into) do
-        filtered_opts =
-          apply(wrapper_mod, :filter_wrap_opts, [filter_opts(wrapper_opts, @wrapper_opts_names)])
+        filtered_opts = filter_wrap_opts(wrapper_opts, wrapper_mod)
 
         wrapper_mod
         |> struct!(into_struct_shape(filtered_opts))
@@ -51,6 +49,11 @@ defmodule SensitiveData.Wrapper.Impl do
       end
     end)
   end
+
+  @doc false
+  @spec filter_wrap_opts(Keyword.t(), module()) :: SensitiveData.Wrapper.wrap_opts()
+  def filter_wrap_opts(opts, wrapper_mod),
+    do: apply(wrapper_mod, :filter_wrap_opts, [filter_opts(opts, @wrapper_opts_names)])
 
   @doc false
   @spec filter_opts(Keyword.t(), [atom()]) :: SensitiveData.Wrapper.wrap_opts()
@@ -95,8 +98,7 @@ defmodule SensitiveData.Wrapper.Impl do
       when is_sensitive(wrapper) and is_function(fun, 1) do
     %wrapper_mod{} = wrapper
 
-    filtered_opts =
-      apply(wrapper_mod, :filter_wrap_opts, [filter_opts(opts, @wrapper_opts_names)])
+    filtered_opts = filter_wrap_opts(opts, wrapper_mod)
 
     updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
 
@@ -147,8 +149,11 @@ defmodule SensitiveData.Wrapper.Impl do
           nil ->
             []
 
-          {mod, into_opts} when is_atom(mod) and is_list(opts) ->
-            [into: {mod, filter_opts(into_opts, @wrapper_opts_names)}]
+          {mod, wrap_opts} when is_atom(mod) and is_list(opts) ->
+            # wrapper options for the `into` option must be filtered according to
+            # the corresponding `into` module and NOT based on the subject `wrapper`
+            # module
+            [into: {mod, filter_wrap_opts(wrap_opts, mod)}]
 
           mod when is_atom(mod) ->
             [into: mod]

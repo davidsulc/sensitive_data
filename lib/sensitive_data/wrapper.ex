@@ -174,7 +174,10 @@ defmodule SensitiveData.Wrapper do
           ] do
       @behaviour SensitiveData.Wrapper
 
+      require SensitiveData.Guards
       require Logger
+
+      alias SensitiveData.Guards
 
       @allowable_opts [:label, :redactor]
       @instance_label_allowed allow_instance_label
@@ -248,18 +251,9 @@ defmodule SensitiveData.Wrapper do
       """
       @impl SensitiveData.Wrapper
       @spec exec(t(), (term() -> term()), SensitiveData.Wrapper.exec_opts()) :: term()
-      def exec(%__MODULE__{} = wrapper, fun, opts \\ []) do
-        # TODO: check disallowed opts (via `use` options) don't get applied
-        into_opts = SensitiveData.Wrapper.Impl.filter_opts(opts, [:into])
-
-        filtered_opts =
-          case Keyword.get(into_opts, :into) do
-            nil -> into_opts
-            wrapper_opts -> Keyword.replace(into_opts, :into, filter_wrap_opts(wrapper_opts))
-          end
-
-        SensitiveData.Wrapper.Impl.exec(wrapper, fun, filtered_opts)
-      end
+      # TODO: validate `into` opts is a valid target
+      def exec(%__MODULE__{} = wrapper, fun, opts \\ []),
+        do: SensitiveData.Wrapper.Impl.exec(wrapper, fun, opts)
 
       @doc """
       Returns the redacted equivalent of the sensitive term within `wrapper`.
