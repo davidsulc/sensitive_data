@@ -81,9 +81,8 @@ defmodule SensitiveData.GuardsTest do
       generator_names = unquote(generators)
 
       check all(
-              # TODO use separate clauses (and refactor other tests for same reason)
-              {data_match, data_no_match} <-
-                {generators(generator_names), generators(except: generator_names)}
+              data_match <- generators(generator_names),
+              data_no_match <- generators(except: generator_names)
             ) do
         case {SensiData.wrap(data_match), SensiData.wrap(data_no_match)} do
           {match, no_match}
@@ -102,12 +101,12 @@ defmodule SensitiveData.GuardsTest do
   # may generate a valid string (which would fail the `refute` expression).
   test "is_sensitive_binary/1 guard" do
     check all(
-            {data_match, data_no_match} <-
-              {generators([:string]),
-               bind_filter(generators(except: [:string, :bitstring]), fn
-                 term when is_binary(term) -> :skip
-                 term -> {:cont, constant(term)}
-               end)}
+            data_match <- generators([:string]),
+            data_no_match <-
+              bind_filter(generators(except: [:string, :bitstring]), fn
+                term when is_binary(term) -> :skip
+                term -> {:cont, constant(term)}
+              end)
           ) do
       case {SensiData.wrap(data_match), SensiData.wrap(data_no_match)} do
         {match, no_match}
@@ -122,7 +121,11 @@ defmodule SensitiveData.GuardsTest do
 
   test "is_sensitive_function/2 guard" do
     for arity <- 0..9 do
-      check all({fun, not_fun} <- {function(arity), generators(except: [:function])}) do
+      check all(
+              fun <- function(arity),
+              not_fun <-
+                generators(except: [:function])
+            ) do
         case {SensiData.wrap(fun), SensiData.wrap(not_fun)} do
           {wrapped_fun, wrapped_other}
           when is_sensitive_function(wrapped_fun, arity) and
