@@ -14,8 +14,7 @@ defmodule SensitiveData.GuardsTest do
     Enum.OutOfBoundsError,
     OptionParser.ParseError,
     Regex.CompileError,
-    RuntimeError,
-    SystemLimitError
+    RuntimeError
   ]
 
   @exception_names_with_term [
