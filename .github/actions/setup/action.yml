@@ -27,7 +27,6 @@ runs:
         path: |
           deps
           _build
-          dialyzer
         key: ${{ runner.os }}-mix-${{ inputs.elixir-version }}-${{ inputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
     - name: Install dependencies
       shell: bash
