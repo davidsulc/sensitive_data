@@ -1,0 +1,25 @@
+name: "Pre-flight checks"
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  pre-flight:
+    runs-on: ubuntu-20.04
+    name: Verify docs can be built
+    steps:
+      - uses: davidsulc/sensitive_data/.github/actions/setup@main
+        with:
+          otp-version: '26.1'
+          elixir-version: '1.16.1'
+      - name: Check formatting
+        run: mix format --check-formatted
+      - name: Check warnings
+        run: mix compile --warnings-as-errors
+      # TODO cache PLT
+      - name: Check Dialyzer
+        run: mix dialyzer
+      - name: Check docs can be built
+        run: mix docs
+

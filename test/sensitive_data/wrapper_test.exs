@@ -1,5 +1,5 @@
 defmodule SensitiveData.WrapperTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import ExUnit.CaptureLog, only: [capture_log: 1]
   import ExUnitProperties
 

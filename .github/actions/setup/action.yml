@@ -1,0 +1,33 @@
+name: Set up with dependencies
+description: "Sets up the application along with dependencies"
+
+inputs:
+  elixir-version:
+    required: true
+    default: '1.15.4'
+  otp-version:
+    required: true
+    default: '26'
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      id: setup-version
+      uses: erlef/setup-beam@v1
+      with:
+        version-type: strict
+        elixir-version: ${{ inputs.elixir-version }}
+        otp-version: ${{ inputs.otp-version }}
+    - name: Cache Mix
+      id: cache-mix
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-mix-${{ inputs.elixir-version }}-${{ inputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+    - name: Install dependencies
+      shell: bash
+      run: mix deps.get

@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  tests:
+    runs-on: ubuntu-20.04
+    name: Test using OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    strategy:
+      fail-fast: false
+      matrix:
+        # see compatibility at https://hexdocs.pm/elixir/1.16.1/compatibility-and-deprecations.html#between-elixir-and-erlang-otp
+        elixir: ['1.11.4', '1.12.3', '1.13.4', '1.14.5', '1.15.1', '1.16.1']
+        otp: ['24.1', '25.1', '26.1']
+        exclude:
+          - elixir: '1.11.4'
+            otp: '25.1'
+          - elixir: '1.11.4'
+            otp: '26.1'
+          - elixir: '1.12.3'
+            otp: '25.1'
+          - elixir: '1.12.3'
+            otp: '26.1'
+          - elixir: '1.13.4'
+            otp: '26.1'
+    steps:
+      - uses: davidsulc/sensitive_data/.github/actions/setup@main
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+      - run: mix test
