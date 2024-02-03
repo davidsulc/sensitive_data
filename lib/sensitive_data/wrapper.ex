@@ -208,9 +208,16 @@ defmodule SensitiveData.Wrapper do
       def filter_wrap_opts(opts) when is_list(opts) do
         filtered = SensitiveData.Wrapper.Impl.filter_opts(opts, @allowable_opts)
 
+        # Keyword.split_with/2 was only introduced in 1.15.0
         {allowed, disallowed} =
-          Keyword.split_with(filtered, fn {k, _v} ->
-            Keyword.get([label: @instance_label_allowed, redactor: @instance_redactor_allowed], k)
+          Enum.reduce(filtered, {[], []}, fn {k, _v} = pair, {acc_allow, acc_disallow} ->
+            case Keyword.get(
+                   [label: @instance_label_allowed, redactor: @instance_redactor_allowed],
+                   k
+                 ) do
+              true -> {[pair | acc_allow], acc_disallow}
+              _ -> {acc_allow, [pair | acc_disallow]}
+            end
           end)
 
         unless disallowed == [],
