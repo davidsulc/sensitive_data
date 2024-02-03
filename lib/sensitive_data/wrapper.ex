@@ -50,7 +50,7 @@ defmodule SensitiveData.Wrapper do
   @typedoc """
   Execution options.
 
-  See `c:SensitiveData.Wrapper.exec/2`.
+  See `c:SensitiveData.Wrapper.exec/3`.
   """
   @type exec_opts :: [into: spec()]
 
