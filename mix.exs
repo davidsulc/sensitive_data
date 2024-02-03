@@ -8,6 +8,10 @@ defmodule SensitiveData.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      dialyzer: [
+        plt_local_path: "dialyzer",
+        plt_core_path: "dialyzer"
+      ],
       docs: [
         extras: ["README.md", "pages/data_leak_prevention.md"]
       ],
