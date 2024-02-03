@@ -4,8 +4,6 @@ defmodule SensitiveData.RedactionTest do
 
   import SensitiveData.Redaction
 
-  import ExUnit.CaptureLog
-
   setup do
     secret = "SOME SECRET"
 
@@ -44,16 +42,12 @@ defmodule SensitiveData.RedactionTest do
 
     assert %BadMapError{term: "SOM********"} = redact_exception(exception, redactor)
 
-    # handling failing custom redactions
-    {redacted_exception, log} =
-      with_log(fn -> redact_exception(exception, fn _val, _type -> raise "oops" end) end)
-
-    assert ^basic_redaction_result = redacted_exception
-
-    assert String.contains?(
-             log,
-             "Custom redaction strategy failed, falling back to `:strip` strategy"
-           )
+    test_failing_custom_redaction(
+      fn ->
+        redact_exception(exception, fn _val, _type -> raise "oops" end)
+      end,
+      basic_redaction_result
+    )
   end
 
   test "redact_stacktrace/2", %{secret: secret, stacktrace: stacktrace} do
@@ -68,16 +62,24 @@ defmodule SensitiveData.RedactionTest do
     redactor = fn args -> List.duplicate("🤫", length(args)) end
     assert {Map, :get, ["🤫", "🤫", "🤫"]} = do_redact_stacktrace(stacktrace, redactor)
 
-    # handling failing custom redactions
-    {redacted_stacktrace, log} =
-      with_log(fn -> do_redact_stacktrace(stacktrace, fn _args -> raise "oops" end) end)
+    test_failing_custom_redaction(
+      fn -> do_redact_stacktrace(stacktrace, fn _args -> raise "oops" end) end,
+      basic_redaction_result
+    )
+  end
 
-    assert ^basic_redaction_result = redacted_stacktrace
+  defp test_failing_custom_redaction(callback, expected_redacted_result) do
+    # with_log was only introduced in 1.13.0
+    if function_exported?(ExUnit.CaptureLog, :with_log, 1) do
+      {redacted_result, log} = ExUnit.CaptureLog.with_log(callback)
 
-    assert String.contains?(
-             log,
-             "Custom redaction strategy failed, falling back to `:strip` strategy"
-           )
+      assert ^expected_redacted_result = redacted_result
+
+      assert String.contains?(
+               log,
+               "Custom redaction strategy failed, falling back to `:strip` strategy"
+             )
+    end
   end
 
   # we only care about the last call (and drop the file info from the tuple)
