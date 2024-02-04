@@ -90,7 +90,7 @@ So function calls that deal with sensitive data need to be wrapped in a
 stack trace, and they must also ensure that sensitive data is removed
 from exception structs.
 
-`SensitiveData.exec/1` will do that for you:
+`SensitiveData.exec/2` will do that for you:
 
 ```sh
 exception: %BadMapError{term: SensitiveData.Redacted}
@@ -207,3 +207,6 @@ GenServer's pid (similarly to the Observer case above), right-click and select
 In the newly opened window, head over to the "Stack Dump" tab and browse the
 "Term" column: you'll see one starting with `<<"SOME_SECRE"`. Click on it to
 view and you'll once again see the sensitive data exposed.
+
+This type of leak can be prevented by wrapping the "SOME_SECRET" sensitive data
+within a structure implementing the `SensitiveData.Wrapper` behaviour.
