@@ -57,8 +57,6 @@ defmodule SensitiveData.Wrapper do
   @doc """
   Wraps the sensitive `term` to prevent unwanted data leaks.
 
-  The sensitive term may later be retrieved via `unwrap/1`.
-
   ## Options
 
   - `:label` - a label displayed when the wrapper is inspected
@@ -86,6 +84,14 @@ defmodule SensitiveData.Wrapper do
 
   @doc """
   Returns the sensitive term within `wrapper`.
+
+  By default, this optional callback will not be generated when `SensitiveData.Wrapper`
+  is `use`d.
+
+  > ### Avoid Unwrapping Sensitive Data {: .warning}
+  >
+  > Calling this function should be discouraged: `c:exec/3` should be used to interact with
+  > sensitive data, rather than unwrapping it.
   """
   @callback unwrap(wrapper :: t()) :: term()
 
@@ -141,15 +147,17 @@ defmodule SensitiveData.Wrapper do
   """
   @callback labeler(term()) :: term()
 
-  @optional_callbacks labeler: 1, redactor: 1
+  @optional_callbacks labeler: 1, redactor: 1, unwrap: 1
 
   defmacro __using__(opts) do
     allow_instance_label = Keyword.get(opts, :allow_instance_label, false)
     allow_instance_redactor = Keyword.get(opts, :allow_instance_redactor, false)
+    gen_unwrap = Keyword.get(opts, :allow_unwrap, false)
 
     quote bind_quoted: [
             allow_instance_label: allow_instance_label,
-            allow_instance_redactor: allow_instance_redactor
+            allow_instance_redactor: allow_instance_redactor,
+            gen_unwrap: gen_unwrap
           ] do
       @behaviour SensitiveData.Wrapper
 
@@ -210,14 +218,16 @@ defmodule SensitiveData.Wrapper do
         allowed
       end
 
-      @doc """
-      Returns the sensitive term within `wrapper`.
+      if gen_unwrap do
+        @doc """
+        Returns the sensitive term within `wrapper`.
 
-      See `c:SensitiveData.Wrapper.unwrap/1`.
-      """
-      @impl SensitiveData.Wrapper
-      @spec unwrap(t()) :: term()
-      def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.unwrap(wrapper)
+        See `c:SensitiveData.Wrapper.unwrap/1`.
+        """
+        @impl SensitiveData.Wrapper
+        @spec unwrap(t()) :: term()
+        def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.unwrap(wrapper)
+      end
 
       @doc """
       Transforms the sensitive term within `wrapper`.

@@ -1,3 +1,3 @@
 defmodule Wrappers.SensiData do
-  use SensitiveData.Wrapper
+  use SensitiveData.Wrapper, allow_unwrap: true
 end
