@@ -34,19 +34,34 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec wrap(term, Keyword.t()) :: Wrapper.t()
   def wrap(term, opts) when is_list(opts) do
+    raise_invalid_target = fn ->
+      raise ArgumentError,
+        message: "provided `:into` opts did not result in a valid wrapper"
+    end
+
     SensitiveData.exec(fn ->
-      into = Keyword.fetch!(opts, :into)
+      {wrapper_mod, wrapper_opts} =
+        case Keyword.fetch!(opts, :into) do
+          {mod, opts} when is_atom(mod) and is_list(opts) -> {mod, opts}
+          mod when is_atom(mod) -> {mod, []}
+          _ -> raise_invalid_target.()
+        end
 
-      with {:ok, {wrapper_mod, wrapper_opts}} <- Wrapper.spec(into) do
-        filtered_opts = filter_wrap_opts(wrapper_opts, wrapper_mod)
+      filtered_opts =
+        try do
+          filter_wrap_opts(wrapper_opts, wrapper_mod)
+        rescue
+          _ -> raise_invalid_target.()
+        end
 
+      wrapper =
         wrapper_mod
         |> struct!(into_struct_shape(filtered_opts))
-        # |> update_data_payload(fn _ -> term end, filtered_opts)
         |> map(fn _ -> term end, filtered_opts)
-      else
-        {:error, e} -> raise e
-      end
+
+      unless is_sensitive(wrapper), do: raise_invalid_target.()
+
+      wrapper
     end)
   end
 

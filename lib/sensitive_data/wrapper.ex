@@ -143,27 +143,6 @@ defmodule SensitiveData.Wrapper do
 
   @optional_callbacks labeler: 1, redactor: 1
 
-  @doc false
-  @spec spec(spec()) :: {:ok, {atom(), wrap_opts()}} | {:error, Exception.t()}
-  # TODO verify mod has wrap function, and that the result is_sensitive
-  def spec({mod, opts}) when is_atom(mod) and is_list(opts), do: {:ok, {mod, opts}}
-  # TODO FIXME handle error cases (nil, bad mod, etc.)
-  def spec(mod) when is_atom(mod), do: spec({mod, []})
-
-  @doc false
-  @spec spec!(spec()) :: {atom(), Keyword.t()}
-  def spec!(spec) do
-    with {:ok, valid_spec} <- spec(spec) do
-      valid_spec
-    else
-      {:error, e} -> raise e
-    end
-  end
-
-  @doc false
-  def from_spec!({mod, opts}, raw_data),
-    do: SensitiveData.exec(fn -> apply(mod, :wrap, [raw_data | [opts]]) end)
-
   defmacro __using__(opts) do
     allow_instance_label = Keyword.get(opts, :allow_instance_label, false)
     allow_instance_redactor = Keyword.get(opts, :allow_instance_redactor, false)

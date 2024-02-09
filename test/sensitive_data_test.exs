@@ -82,4 +82,12 @@ defmodule SensitiveDataTest do
       end)
     end
   end
+
+  test "exec into with invalid :into target" do
+    for into_opts <- [List, {List, [:foo, :bar]}, "foo"] do
+      assert_raise(ArgumentError, "provided `:into` opts did not result in a valid wrapper", fn ->
+        exec(fn -> :foo end, into: into_opts)
+      end)
+    end
+  end
 end
