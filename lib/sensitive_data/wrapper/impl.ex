@@ -100,10 +100,6 @@ defmodule SensitiveData.Wrapper.Impl do
     }
   end
 
-  @spec unwrap(struct()) :: term()
-  def unwrap(%{} = wrapper) when is_sensitive(wrapper),
-    do: wrapper.__priv__.data_provider.()
-
   @spec map(
           Wrapper.t(),
           (existing_value :: term() -> new_value :: term()),
@@ -185,4 +181,8 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec to_redacted(struct()) :: term()
   def to_redacted(%{} = wrapper) when is_sensitive(wrapper), do: wrapper.redacted
+
+  @spec unwrap(struct()) :: term()
+  defp unwrap(%{} = wrapper) when is_sensitive(wrapper),
+    do: wrapper.__priv__.data_provider.()
 end

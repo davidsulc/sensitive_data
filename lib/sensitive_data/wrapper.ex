@@ -103,13 +103,6 @@ defmodule SensitiveData.Wrapper do
   @callback unwrap(wrapper :: t()) :: term()
 
   @doc """
-  Invokes the callback on the wrapped sensitive term and returns the wrapped result.
-  """
-  @callback map(wrapper :: t(), (sensitive_data_orig -> sensitive_data_transformed), wrap_opts()) ::
-              t()
-            when sensitive_data_orig: term(), sensitive_data_transformed: term()
-
-  @doc """
   Returns the result of the callback invoked with the sensitive term.
 
   Executes the provided function with the sensitive term provided as the function argument, ensuring no data leaks in case of error.
@@ -118,6 +111,13 @@ defmodule SensitiveData.Wrapper do
   """
   @callback exec(wrapper :: t(), (sensitive_data -> result), exec_opts()) :: result
             when sensitive_data: term(), result: term()
+
+  @doc """
+  Invokes the callback on the wrapped sensitive term and returns the wrapped result.
+  """
+  @callback map(wrapper :: t(), (sensitive_data_orig -> sensitive_data_transformed), wrap_opts()) ::
+              t()
+            when sensitive_data_orig: term(), sensitive_data_transformed: term()
 
   @doc """
   Returns the redacted equivalent of the sensitive term within `wrapper`.
@@ -233,7 +233,7 @@ defmodule SensitiveData.Wrapper do
         """
         @impl SensitiveData.Wrapper
         @spec unwrap(t()) :: term()
-        def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.unwrap(wrapper)
+        def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.exec(wrapper, & &1)
       end
 
       @doc """
