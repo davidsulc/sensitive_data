@@ -123,7 +123,7 @@ defmodule SensitiveData do
   defp maybe_wrap(raw_data, opts) do
     case Keyword.get(opts, :into) do
       nil -> raw_data
-      into -> Wrapper.Impl.wrap(raw_data, into: into)
+      into -> Wrapper.Impl.from(fn -> raw_data end, into: into)
     end
   end
 end

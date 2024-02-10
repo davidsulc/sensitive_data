@@ -58,13 +58,61 @@ defmodule SensitiveData.Wrapper do
   @type exec_opts :: [into: spec()]
 
   @doc """
-  Wraps the sensitive `term` to prevent unwanted data leaks.
+  Wraps the sensitive term returned by the callback to prevent unwanted data
+  leaks.
+
+  The callback is executed only once during wrapper instanciation.
 
   ## Options
 
   - `:label` - a label displayed when the wrapper is inspected
   - `:redactor` - a redaction function returning the redacted equivalent of the
     given term
+
+  ## Examples
+
+      MySensitiveData.from(fn -> "foo" end)
+      # #MySensitiveData<...>
+
+      MySensitiveData.from(fn -> "123451234512345" end, label: :credit_card_user_bob)
+      # #MySensitiveData<label: :credit_card_user_bob, ...>
+
+      MySensitiveData.wrap(fn -> "123451234512345" end, label: :credit_card_user_bob,
+        redactor: fn credit_card_number ->
+          digits = String.split(credit_card_number, "", trim: true)
+          {to_redact, last} = Enum.split(digits, length(digits) - 4)
+          IO.iodata_to_binary([String.duplicate("*", length(to_redact)), last])
+        end)
+      # #MySensitiveData<redacted: "***********2345",
+          label: :credit_card_user_bob, ...>
+  """
+  @callback from(function(), wrap_opts()) :: t()
+
+  @doc """
+  Wraps the sensitive `term` to prevent unwanted data leaks.
+
+  > ### Prefer Using From {: .tip}
+  >
+  > Calling this function should be discouraged: `c:from/2` should be used instead
+  > to wrap sensitive data, as in all cases where you would call `wrap(my_value)`
+  > you should instead call `from(fn -> my_value end)`.
+
+  The reason for this preference for `from/2` is that it is much harder to
+  accidentally misuse. For example, `wrap(get_credit_card_number())` and
+  `from(get_credit_card_number)` look very similar, but if `get_credit_card_number/0`
+  raises and leaks sensitive data when it does, the call to `wrap/1` will raise and
+  expose sensitive information whereas the call to `from/1` will not. This is because
+  `from/2` internally wraps callback execution within `SensitiveData.exec/2`.
+
+  Additionally, making use of `wrap/2` means you have access to unwrapped sensitive
+  data, which should be discouraged: regardless of whether this sensitive data was
+  fetched, generated, or derived, this should be done via functions from this library.
+  Put another way, obtaining sensitive data and only then stuffing it into a wrapper
+  is an anti-pattern that shouldn't be encouraged, and `wrap/2` facilitates it.
+
+  ## Options
+
+  See `c:from/2`
 
   ## Examples
 
@@ -95,10 +143,10 @@ defmodule SensitiveData.Wrapper do
   >
   > Calling this function should be discouraged: `c:exec/3` should be used instead
   > to interact with sensitive data.
-  >
-  > You can always obtain the raw sensitive data via `exec(& &1)` but should seriously
-  > reconsider if that's needed: usually a combination of `map/2` and `exec/2` should
-  > satisfy all your needs regarding sensitive data interaction.
+
+  You can always obtain the raw sensitive data via `exec(& &1)` but should seriously
+  reconsider if that's needed: usually a combination of `map/2` and `exec/2` should
+  satisfy all your needs regarding sensitive data interaction.
   """
   @callback unwrap(wrapper :: t()) :: term()
 
@@ -154,17 +202,19 @@ defmodule SensitiveData.Wrapper do
   """
   @callback labeler(term()) :: term()
 
-  @optional_callbacks labeler: 1, redactor: 1, unwrap: 1
+  @optional_callbacks labeler: 1, redactor: 1, unwrap: 1, wrap: 2
 
   defmacro __using__(opts) do
     allow_instance_label = Keyword.get(opts, :allow_instance_label, false)
     allow_instance_redactor = Keyword.get(opts, :allow_instance_redactor, false)
-    gen_unwrap = Keyword.get(opts, :allow_unwrap, false)
+    gen_unwrap = Keyword.get(opts, :unwrap, false)
+    gen_wrap = Keyword.get(opts, :unwrap, false)
 
     quote bind_quoted: [
             allow_instance_label: allow_instance_label,
             allow_instance_redactor: allow_instance_redactor,
-            gen_unwrap: gen_unwrap
+            gen_unwrap: gen_unwrap,
+            gen_wrap: gen_wrap
           ] do
       @behaviour SensitiveData.Wrapper
 
@@ -188,14 +238,29 @@ defmodule SensitiveData.Wrapper do
       @public_fields [:label, :redactor]
 
       @doc """
-      Wraps the sensitive `term` to prevent unwanted data leaks.
+      Wraps the result of the given callback.
 
       See `c:SensitiveData.Wrapper.wrap/2`.
       """
       @impl SensitiveData.Wrapper
-      @spec wrap(term, list) :: t()
-      def wrap(term, opts \\ []),
-        do: SensitiveData.Wrapper.Impl.wrap(term, into: {__MODULE__, filter_wrap_opts(opts)})
+      @spec from(function, list) :: t()
+      def from(provider, opts \\ []) when is_function(provider) and is_list(opts),
+        do:
+          SensitiveData.Wrapper.Impl.from(provider,
+            into: {__MODULE__, filter_wrap_opts(opts)}
+          )
+
+      if gen_wrap do
+        @doc """
+        Wraps `term`.
+
+        See `c:SensitiveData.Wrapper.wrap/2`.
+        """
+        @impl SensitiveData.Wrapper
+        @spec wrap(term, list) :: t()
+        def wrap(term, opts \\ []),
+          do: from(fn -> term end, opts)
+      end
 
       @doc false
       @spec filter_wrap_opts(Keyword.t()) :: SensitiveData.Wrapper.wrap_opts()
@@ -233,7 +298,7 @@ defmodule SensitiveData.Wrapper do
         """
         @impl SensitiveData.Wrapper
         @spec unwrap(t()) :: term()
-        def unwrap(%__MODULE__{} = wrapper), do: SensitiveData.Wrapper.Impl.exec(wrapper, & &1)
+        def unwrap(%__MODULE__{} = wrapper), do: exec(wrapper, & &1)
       end
 
       @doc """

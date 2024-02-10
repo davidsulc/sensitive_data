@@ -32,14 +32,16 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @wrapper_opts_names [:label, :redactor]
 
-  @spec wrap(term, Keyword.t()) :: Wrapper.t()
-  def wrap(term, opts) when is_list(opts) do
+  @spec from(function(), Keyword.t()) :: Wrapper.t()
+  def from(provider, opts) when is_function(provider, 0) and is_list(opts) do
     raise_invalid_target = fn ->
       raise ArgumentError,
         message: "provided `:into` opts did not result in a valid wrapper"
     end
 
     SensitiveData.exec(fn ->
+      term = provider.()
+
       {wrapper_mod, wrapper_opts} =
         case Keyword.fetch!(opts, :into) do
           {mod, opts} when is_atom(mod) and is_list(opts) -> {mod, opts}

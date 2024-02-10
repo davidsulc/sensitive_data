@@ -28,6 +28,40 @@ defmodule SensitiveData.WrapperTest do
     end
   end
 
+  test "from/exec work in tandem" do
+    check all(
+            term <- term(),
+            wrapper_impl <- member_of([SensiData, SensiDataCust]),
+            wrap_opts <- wrap_opts()
+          ) do
+      capture_log(fn ->
+        wrapped = apply(wrapper_impl, :from, [fn -> term end, wrap_opts])
+        unwrapped = apply(wrapper_impl, :exec, [wrapped, & &1])
+
+        assert unwrapped == term
+      end)
+    end
+  end
+
+  test "from/exec are equivalent to wrap/unwrap" do
+    check all(
+            term <- term(),
+            wrapper_impl <- member_of([SensiData, SensiDataCust]),
+            wrap_opts <- wrap_opts()
+          ) do
+      capture_log(fn ->
+        wrapped = apply(wrapper_impl, :wrap, [term, wrap_opts])
+        unwrapped_by_exec = apply(wrapper_impl, :exec, [wrapped, & &1])
+
+        wrapped_by_from = apply(wrapper_impl, :from, [fn -> term end, wrap_opts])
+        unwrapped = apply(wrapper_impl, :unwrap, [wrapped_by_from])
+
+        assert unwrapped_by_exec == term
+        assert unwrapped == term
+      end)
+    end
+  end
+
   test "wrap/2" do
     check all(term <- term(), wrap_opts <- wrap_opts()) do
       capture_log(fn ->
@@ -165,6 +199,7 @@ defmodule SensitiveData.WrapperTest do
     # (and therefore aren't relevant to this test)
     ignored_functions = [
       :filter_wrap_opts,
+      :from,
       :redactor,
       :wrap
     ]
