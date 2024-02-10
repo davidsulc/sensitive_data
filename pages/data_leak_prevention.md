@@ -210,3 +210,16 @@ view and you'll once again see the sensitive data exposed.
 
 This type of leak can be prevented by wrapping the "SOME_SECRET" sensitive data
 within a structure implementing the `SensitiveData.Wrapper` behaviour.
+
+[//]: # (This is used in an HTML anchor: if updated, update links with)
+[//]: # (#additional-mitigations in the URL)
+
+## Additional Mitigations
+
+Your first port of call should be the [Erlang Ecosystem Foundation](https://erlef.org/)'s
+article on
+[protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html).
+
+While wrapping sensitive data within a `SensitiveData.Wrapper` instance will
+conform to many recommendations in the article ()
+

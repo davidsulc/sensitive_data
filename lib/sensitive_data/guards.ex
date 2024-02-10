@@ -6,7 +6,7 @@ defmodule SensitiveData.Guards do
 
       import SensitiveData.Guards, only: [is_sensitive_binary: 1]
 
-      def send_request(key) when is_sensitive_binary(key) do
+      def send_request(api_key) when is_sensitive_binary(api_key) do
         ...
       end
 

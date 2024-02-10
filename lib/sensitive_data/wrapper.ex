@@ -2,6 +2,9 @@ defmodule SensitiveData.Wrapper do
   @moduledoc """
   Defines a wrapper for sensitive data.
 
+  [//]: # (This is used in an HTML anchor: if updated, update links with)
+  [//]: # (#module-labeling-and-redacting in the URL)
+
   ## Labeling and Redacting
 
   TODO
@@ -90,8 +93,12 @@ defmodule SensitiveData.Wrapper do
 
   > ### Avoid Unwrapping Sensitive Data {: .warning}
   >
-  > Calling this function should be discouraged: `c:exec/3` should be used to interact with
-  > sensitive data, rather than unwrapping it.
+  > Calling this function should be discouraged: `c:exec/3` should be used instead
+  > to interact with sensitive data.
+  >
+  > You can always obtain the raw sensitive data via `exec(& &1)` but should seriously
+  > reconsider if that's needed: usually a combination of `map/2` and `exec/2` should
+  > satisfy all your needs regarding sensitive data interaction.
   """
   @callback unwrap(wrapper :: t()) :: term()
 
