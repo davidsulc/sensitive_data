@@ -64,12 +64,23 @@ defmodule SensitiveDataTest do
       assert is_nil(wrapped.label)
       assert SensiData.to_redacted(wrapped) == SensitiveData.Redacted
 
+      wrapped_by_module = SensiData.from(fn -> term end)
+
+      assert wrapped == wrapped_by_module
+
+      redactor = fn _ -> redacted end
+
       wrapped_with_opts =
-        exec(fn -> term end, into: {SensiDataCust, label: label, redactor: fn _ -> redacted end})
+        exec(fn -> term end, into: {SensiDataCust, label: label, redactor: redactor})
 
       assert SensiDataCust.unwrap(wrapped_with_opts) == term
       assert wrapped_with_opts.label == label
       assert SensiDataCust.to_redacted(wrapped_with_opts) == redacted
+
+      wrapped_with_opts_by_module =
+        SensiDataCust.from(fn -> term end, label: label, redactor: redactor)
+
+      assert wrapped_with_opts == wrapped_with_opts_by_module
 
       # opts get dropped if not allowed in call to `use`
       capture_log(fn ->
