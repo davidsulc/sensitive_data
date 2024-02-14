@@ -7,8 +7,7 @@ defmodule SensitiveData.WrapperTest do
 
   require SensitiveData.Guards
 
-  alias SensitiveData.Guards
-  # wrapper intsances used for testing
+  # wrapper instances used for testing
   alias Wrappers.{SensiData, SensiDataCust}
 
   doctest SensitiveData.Wrapper
@@ -67,17 +66,14 @@ defmodule SensitiveData.WrapperTest do
       capture_log(fn ->
         wrapped = SensiData.wrap(term, wrap_opts)
 
-        # SensiData doesn't allow instance labels or redactors
+        # SensiData doesn't allow instance labels
         assert is_nil(wrapped.label)
-        assert wrapped.redacted == SensitiveData.Redacted
+        assert is_nil(wrapped.redacted)
       end)
 
       wrapped = SensiDataCust.wrap(term, wrap_opts)
 
-      redactor = get_redactor(wrap_opts, wrapped)
-
       assert Keyword.get(wrap_opts, :label) == wrapped.label
-      assert redactor.(term) == wrapped.redacted
     end
   end
 
@@ -94,7 +90,7 @@ defmodule SensitiveData.WrapperTest do
         # check that label and redactor are ignored
         mapped = SensiData.map(wrapped, fn _ -> map_result end, map_opts)
         assert is_nil(mapped.label)
-        assert mapped.redacted == SensitiveData.Redacted
+        assert is_nil(mapped.redacted)
         unwrapped = SensiData.unwrap(mapped)
         assert unwrapped == map_result
       end)
@@ -103,13 +99,10 @@ defmodule SensitiveData.WrapperTest do
 
       expected_label = Keyword.get(map_opts, :label, wrapped.label)
 
-      redactor = get_redactor(map_opts, wrapped)
-
       # check that label and redactor are updated and applied if given as opts,
       # otherwise the existing label and redactor are kept
       mapped = SensiDataCust.map(wrapped, fn _ -> map_result end, map_opts)
       assert expected_label == mapped.label
-      assert redactor.(map_result) == mapped.redacted
       unwrapped = SensiDataCust.unwrap(mapped)
       assert unwrapped == map_result
     end
@@ -130,7 +123,7 @@ defmodule SensitiveData.WrapperTest do
           SensiDataCust.exec(wrapped, fn _ -> exec_result end, into: {SensiData, into_opts})
 
         assert is_nil(result.label)
-        assert result.redacted == SensitiveData.Redacted
+        assert is_nil(result.redacted)
         assert SensiData.unwrap(result) == exec_result
       end)
 
@@ -141,11 +134,6 @@ defmodule SensitiveData.WrapperTest do
           # check that label and redactor are applied
           result =
             SensiData.exec(wrapped, fn _ -> exec_result end, into: {SensiDataCust, into_opts})
-
-          case get_redactor(into_opts, SensiDataCust) do
-            nil -> assert is_nil(result.redacted)
-            redactor -> assert redactor.(exec_result) == result.redacted
-          end
 
           assert result.label == Keyword.get(into_opts, :label)
           assert SensiDataCust.unwrap(result) == exec_result
@@ -196,35 +184,9 @@ defmodule SensitiveData.WrapperTest do
     assert [] == remaining, "some functions are neither tested nor ignored: #{inspect(remaining)}"
   end
 
-  defp get_redactor(opts, wrapper_mod) when is_atom(wrapper_mod) do
-    case Keyword.get(opts, :redactor) do
-      nil ->
-        case function_exported?(wrapper_mod, :redactor, 1) do
-          true -> &wrapper_mod.redactor/1
-          false -> nil
-        end
-
-      redactor ->
-        redactor
-    end
-  end
-
-  defp get_redactor(opts, wrapper) when Guards.is_sensitive(wrapper),
-    do: get_redactor_or_default(opts, wrapper.__priv__.redactor)
-
-  defp get_redactor_or_default(opts, default_redacted),
-    do: Keyword.get(opts, :redactor, default_redacted || fn _ -> SensitiveData.Redacted end)
-
   defp wrap_opts() do
     bind(term(), fn label ->
-      bind(term(), fn redaction_result ->
-        bind(integer(0..2), fn count ->
-          [label: label, redactor: fn _ -> redaction_result end]
-          |> Enum.shuffle()
-          |> Enum.take(count)
-          |> constant()
-        end)
-      end)
+      one_of([constant([]), constant(label: label)])
     end)
   end
 end

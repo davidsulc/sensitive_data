@@ -11,7 +11,7 @@ defmodule SensitiveData.Wrapper do
 
   TODO: document can use label for matching
 
-  TODO document __using__: allow_instance_label, etc.
+  TODO document __using__: allow_label, etc.
   """
 
   alias SensitiveData.Redaction
@@ -176,75 +176,77 @@ defmodule SensitiveData.Wrapper do
               t()
             when sensitive_data_orig: term(), sensitive_data_transformed: term()
 
-  @doc """
-  Returns a redacted equivalent of the provided sensitive `term`.
+  # TODO delete after updating documentation: redactor specfication happens as a `use` option
+  # @doc """
+  # Returns a redacted equivalent of the provided sensitive `term`.
 
-  > #### Beware {: .warning}
-  >
-  > If you use a custom redaction strategy, you must ensure it won't leak any
-  > sensitive data under any circumstances.
+  # > #### Beware {: .warning}
+  # >
+  # > If you use a custom redaction strategy, you must ensure it won't leak any
+  # > sensitive data under any circumstances.
 
-  The redacted value will be maintained as a field within the wrapper (see
-  [labeling and redacting section](#module-labeling-and-redacting))
-  and can be used to assist in determining what the wrapped sensitive value
-  was then the wrapper is inspected (manually when debugging, via Observer,
-  dumped in crashes, and so on).
+  # The redacted value will be maintained as a field within the wrapper (see
+  # [labeling and redacting section](#module-labeling-and-redacting))
+  # and can be used to assist in determining what the wrapped sensitive value
+  # was then the wrapper is inspected (manually when debugging, via Observer,
+  # dumped in crashes, and so on).
 
-  ## Example
+  # ## Example
 
-      defmodule CreditCard do
-        use SensitiveData.Wrapper
+  #     defmodule CreditCard do
+  #       use SensitiveData.Wrapper
 
-        def redactor(card_number) do
-          {to_mask, last_four} = String.split_at(card_number, -4)
-          String.duplicate("*", String.length(to_mask)) <> last_four
-        end
-      end
+  #       def redactor(card_number) do
+  #         {to_mask, last_four} = String.split_at(card_number, -4)
+  #         String.duplicate("*", String.length(to_mask)) <> last_four
+  #       end
+  #     end
 
-      iex(1)> CreditCard.from(fn -> "123451234512345" end)
-      #CreditCard<redacted: "1**********2345", ...>
-  """
-  @callback redactor(term()) :: term()
+  #     iex(1)> CreditCard.from(fn -> "123451234512345" end)
+  #     #CreditCard<redacted: "1**********2345", ...>
+  # """
+  # @callback redactor(term()) :: term()
 
-  @doc """
-  Returns a label to describe the given sensitive `term`.
+  # TODO delete after moving (?) docs
+  # @doc """
+  # Returns a label to describe the given sensitive `term`.
 
-  > #### Beware {: .warning}
-  >
-  > If you use a labeler, you must ensure it won't leak any
-  > sensitive data under any circumstances.
+  # > #### Beware {: .warning}
+  # >
+  # > If you use a labeler, you must ensure it won't leak any
+  # > sensitive data under any circumstances.
 
-  The label will be maintained as a field within the wrapper (see
-  [labeling and redacting section](#module-labeling-and-redacting))
-  and can be used to assist in determining what the wrapped sensitive value
-  was then the wrapper is inspected (manually when debugging, via Observer,
-  dumped in crashes, and so on).
+  # The label will be maintained as a field within the wrapper (see
+  # [labeling and redacting section](#module-labeling-and-redacting))
+  # and can be used to assist in determining what the wrapped sensitive value
+  # was then the wrapper is inspected (manually when debugging, via Observer,
+  # dumped in crashes, and so on).
 
-  ## Example
+  # ## Example
 
-      defmodule DatabaseCredentials do
-        use SensitiveData
+  #     defmodule DatabaseCredentials do
+  #       use SensitiveData
 
-        def labeler(%{username: _, password: _}), do: :username_and_password
-        def labeler(%URI{}), do: :connection_uri
-      end
+  #       def labeler(%{username: _, password: _}), do: :username_and_password
+  #       def labeler(%URI{}), do: :connection_uri
+  #     end
 
-      DatabaseCredentials.from(fn -> %{username: "foo", password: "bar"} end)
-      # #DatabaseCredentials<label: :credit_card_user_bob, ...>
-  """
-  @callback labeler(term()) :: term()
+  #     DatabaseCredentials.from(fn -> %{username: "foo", password: "bar"} end)
+  #     # #DatabaseCredentials<label: :credit_card_user_bob, ...>
+  # """
+  # @callback labeler(term()) :: term()
 
-  @optional_callbacks labeler: 1, redactor: 1, unwrap: 1, wrap: 2
+  @optional_callbacks unwrap: 1, wrap: 2
 
   defmacro __using__(opts) do
-    allow_instance_label = Keyword.get(opts, :allow_instance_label, false)
-    allow_instance_redactor = Keyword.get(opts, :allow_instance_redactor, false)
+    allow_label = Keyword.get(opts, :allow_label, false)
     gen_unwrap = Keyword.get(opts, :unwrap, false)
     gen_wrap = Keyword.get(opts, :unwrap, false)
+    redactor = Keyword.get(opts, :redactor)
 
     quote bind_quoted: [
-            allow_instance_label: allow_instance_label,
-            allow_instance_redactor: allow_instance_redactor,
+            allow_label: allow_label,
+            redactor: redactor,
             gen_unwrap: gen_unwrap,
             gen_wrap: gen_wrap
           ] do
@@ -255,9 +257,8 @@ defmodule SensitiveData.Wrapper do
 
       alias SensitiveData.Guards
 
-      @allowable_opts [:label, :redactor]
-      @instance_label_allowed allow_instance_label
-      @instance_redactor_allowed allow_instance_redactor
+      @allowable_opts [:label]
+      @instance_label_allowed allow_label
 
       @typedoc ~s"""
       An instance of this wrapper.
@@ -266,8 +267,6 @@ defmodule SensitiveData.Wrapper do
 
       @derive {Inspect, only: [:label, :redacted], optional: [:label, :redacted]}
       defstruct [:redacted, :label, :__priv__]
-
-      @public_fields [:label, :redactor]
 
       @doc """
       Wraps the result of the given callback.
@@ -302,10 +301,7 @@ defmodule SensitiveData.Wrapper do
         # Keyword.split_with/2 was only introduced in 1.15.0
         {allowed, disallowed} =
           Enum.reduce(filtered, {[], []}, fn {k, _v} = pair, {acc_allow, acc_disallow} ->
-            case Keyword.get(
-                   [label: @instance_label_allowed, redactor: @instance_redactor_allowed],
-                   k
-                 ) do
+            case Keyword.get([label: @instance_label_allowed], k) do
               true -> {[pair | acc_allow], acc_disallow}
               _ -> {acc_allow, [pair | acc_disallow]}
             end
@@ -353,6 +349,17 @@ defmodule SensitiveData.Wrapper do
       # TODO: validate `into` opts is a valid target
       def exec(%__MODULE__{} = wrapper, fun, opts \\ []),
         do: SensitiveData.Wrapper.Impl.exec(wrapper, fun, opts)
+
+      # we always implement this function
+      # That way, it's not possible (as this function is not defoverridable) to
+      # sneak in an unsafe/incorrect redactor implemnentatation.
+      # TODO document that if the redactor function returns nil it won't be displayed when inspecting
+      # TODO document (and test) that Redacted is used for when a redactor raises
+      if redactor do
+        def __sensitive_data_redactor__(), do: unquote(redactor)
+      else
+        def __sensitive_data_redactor__(), do: nil
+      end
     end
   end
 end

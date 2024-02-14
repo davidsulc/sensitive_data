@@ -1,10 +1,10 @@
 defmodule Wrappers.SensiDataCust do
   use SensitiveData.Wrapper,
-    allow_instance_label: true,
-    allow_instance_redactor: true,
+    allow_label: true,
+    redactor: :custom_redactor,
     unwrap: true,
     wrap: true
 
   # TODO document default redactor (and fallback to SensitiveData.Redacted)
-  def redactor(term), do: "#{inspect(term)}, but redacted"
+  def custom_redactor(term), do: "#{inspect(term)}, but redacted"
 end

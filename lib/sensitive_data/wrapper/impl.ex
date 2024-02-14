@@ -7,13 +7,12 @@ defmodule SensitiveData.Wrapper.Impl do
     @derive {Inspect, only: []}
     defstruct [
       :data_type,
-      :redactor,
       data_provider: &__MODULE__.data_provider_placeholder/0,
       structure: SensitiveData
     ]
 
-    def new!(args) do
-      %__MODULE__{redactor: Keyword.get(args, :redactor)}
+    def new!() do
+      %__MODULE__{}
     end
 
     @doc false
@@ -27,10 +26,10 @@ defmodule SensitiveData.Wrapper.Impl do
 
   require Logger
 
-  alias SensitiveData.Redaction
+  alias SensitiveData.Redacted
   alias SensitiveData.Wrapper
 
-  @wrapper_opts_names [:label, :redactor]
+  @wrapper_opts_names [:label]
 
   @spec from(function(), Keyword.t()) :: Wrapper.t()
   def from(provider, opts) when is_function(provider, 0) and is_list(opts) do
@@ -90,15 +89,9 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec into_struct_shape(Wrapper.wrap_opts()) :: map()
   defp into_struct_shape(opts) do
-    priv_opts =
-      case Keyword.get(opts, :redactor) do
-        nil -> []
-        redactor -> [redactor: redactor]
-      end
-
     %{
       label: Keyword.get(opts, :label),
-      __priv__: PrivateData.new!(priv_opts)
+      __priv__: PrivateData.new!()
     }
   end
 
@@ -113,45 +106,32 @@ defmodule SensitiveData.Wrapper.Impl do
 
     filtered_opts = filter_wrap_opts(opts, wrapper_mod)
 
+    new_label = Keyword.get(filtered_opts, :label, wrapper.label)
+
     updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
 
-    new_label = get_label(wrapper, filtered_opts)
-    new_redactor = get_redactor(wrapper, filtered_opts)
+    redacted =
+      try do
+        case apply(wrapper_mod, :__sensitive_data_redactor__, []) do
+          nil -> nil
+          # TODO document use option
+          {mod_name, fn_name} -> apply(mod_name, fn_name, [updated_data])
+          fn_name -> apply(wrapper_mod, fn_name, [updated_data])
+        end
+      rescue
+        _ -> Redacted
+      end
 
     %{
       wrapper
       | label: new_label,
-        redacted: new_redactor.(updated_data),
+        redacted: redacted,
         __priv__: %{
           wrapper.__priv__
           | data_provider: fn -> updated_data end,
-            data_type: data_type(updated_data),
-            redactor: new_redactor
+            data_type: data_type(updated_data)
         }
     }
-  end
-
-  @spec get_label(Wrapper.t(), Keyword.t()) :: term()
-  defp get_label(wrapper, opts) when is_sensitive(wrapper) and is_list(opts),
-    do: Keyword.get(opts, :label, wrapper.label)
-
-  @spec get_redactor(Wrapper.t(), Keyword.t()) :: Redaction.redactor()
-  defp get_redactor(wrapper, opts) when is_sensitive(wrapper) and is_list(opts) do
-    with nil <- Keyword.get(opts, :redactor),
-         nil <- wrapper.__priv__.redactor do
-      get_fun_or_default(wrapper, :redactor, SensitiveData.Redacted)
-    end
-  end
-
-  @spec get_fun_or_default(Wrapper.t(), atom(), term()) :: (term() -> term())
-  defp get_fun_or_default(wrapper, fun_name, default_return_value)
-       when is_sensitive(wrapper) and is_atom(fun_name) do
-    %mod{} = wrapper
-
-    case(function_exported?(mod, fun_name, 1)) do
-      true -> fn term -> apply(mod, fun_name, [term]) end
-      false -> fn _ -> default_return_value end
-    end
   end
 
   @spec exec(struct(), (term() -> result)) :: result when result: term()

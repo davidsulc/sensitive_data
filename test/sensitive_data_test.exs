@@ -57,39 +57,35 @@ defmodule SensitiveDataTest do
   end
 
   test "exec into" do
-    check all(term <- term(), label <- term(), redacted <- string(:printable)) do
+    check all(term <- term(), label <- term()) do
       wrapped = exec(fn -> term end, into: SensiData)
 
       assert SensiData.unwrap(wrapped) == term
       assert is_nil(wrapped.label)
-      assert wrapped.redacted == SensitiveData.Redacted
+      assert is_nil(wrapped.redacted)
 
       wrapped_by_module = SensiData.from(fn -> term end)
 
       assert wrapped == wrapped_by_module
 
-      redactor = fn _ -> redacted end
-
       wrapped_with_opts =
-        exec(fn -> term end, into: {SensiDataCust, label: label, redactor: redactor})
+        exec(fn -> term end, into: {SensiDataCust, label: label})
 
       assert SensiDataCust.unwrap(wrapped_with_opts) == term
       assert wrapped_with_opts.label == label
-      assert wrapped_with_opts.redacted == redacted
 
       wrapped_with_opts_by_module =
-        SensiDataCust.from(fn -> term end, label: label, redactor: redactor)
+        SensiDataCust.from(fn -> term end, label: label)
 
       assert wrapped_with_opts == wrapped_with_opts_by_module
 
       # opts get dropped if not allowed in call to `use`
       capture_log(fn ->
         wrapped_with_opts =
-          exec(fn -> term end, into: {SensiData, label: label, redactor: fn _ -> redacted end})
+          exec(fn -> term end, into: {SensiData, label: label})
 
         assert SensiData.unwrap(wrapped_with_opts) == term
         assert is_nil(wrapped_with_opts.label)
-        assert wrapped_with_opts.redacted == SensitiveData.Redacted
       end)
     end
   end
