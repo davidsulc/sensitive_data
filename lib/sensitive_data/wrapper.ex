@@ -39,14 +39,14 @@ defmodule SensitiveData.Wrapper do
   @type spec :: wrapper_module() | {wrapper_module(), wrap_opts()}
 
   @typedoc """
-  A module implementing the `c:wrap/2` callback.
+  A module implementing the `c:from/2` callback.
   """
   @type wrapper_module :: atom()
 
   @typedoc """
   Wrapping options.
 
-  See `c:SensitiveData.Wrapper.wrap/2`.
+  See `c:SensitiveData.Wrapper.from/2`.
   """
   @type wrap_opts :: [label: term(), redactor: Redaction.redactor()]
 
@@ -68,6 +68,8 @@ defmodule SensitiveData.Wrapper do
   - `:label` - a label displayed when the wrapper is inspected
   - `:redactor` - a redaction function returning the redacted equivalent of the
     given term
+
+  TODO label & redactor options are only available if configured in `Wrapper` `use`
 
   ## Examples
 
@@ -146,7 +148,8 @@ defmodule SensitiveData.Wrapper do
 
   You can always obtain the raw sensitive data via `exec(& &1)` but should seriously
   reconsider if that's needed: usually a combination of `map/2` and `exec/2` should
-  satisfy all your needs regarding sensitive data interaction.
+  satisfy all your needs regarding sensitive data interaction, and sensitive data
+  typically never needs to be extracted from wrappers.
   """
   @callback unwrap(wrapper :: t()) :: term()
 
@@ -156,12 +159,18 @@ defmodule SensitiveData.Wrapper do
   Executes the provided function with the sensitive term provided as the function argument, ensuring no data leaks in case of error.
 
   The unwrapped result of the callback exeution is then returned.
+
+  TODO document into option
+  TODO label & redactor options are only available if configured in `Wrapper` `use`
   """
   @callback exec(wrapper :: t(), (sensitive_data -> result), exec_opts()) :: result
             when sensitive_data: term(), result: term()
 
   @doc """
   Invokes the callback on the wrapped sensitive term and returns the wrapped result.
+
+  TODO document into option
+  TODO label & redactor options are only available if configured in `Wrapper` `use`
   """
   @callback map(wrapper :: t(), (sensitive_data_orig -> sensitive_data_transformed), wrap_opts()) ::
               t()
@@ -176,11 +185,41 @@ defmodule SensitiveData.Wrapper do
 
   @doc """
   Returns a redacted equivalent of the provided sensitive `term`.
+
+  > #### Beware {: .warning}
+  >
+  > If you use a custom redaction strategy, you must ensure it won't leak any
+  > sensitive data under any circumstances.
+
+  The redacted value will be maintained as a field within the wrapper (see
+  [labeling and redacting section](#module-labeling-and-redacting))
+  and can be used to assist in determining what the wrapped sensitive value
+  was then the wrapper is inspected (manually when debugging, via Observer,
+  dumped in crashes, and so on).
+
+  ## Example
+
+      defmodule CreditCard do
+        use SensitiveData.Wrapper
+
+        def redactor(card_number) do
+          {to_mask, last_four} = String.split_at(card_number, -4)
+          String.duplicate("*", String.length(to_mask)) <> last_four
+        end
+      end
+
+      iex(1)> CreditCard.from(fn -> "123451234512345" end)
+      #CreditCard<redacted: "1**********2345", ...>
   """
   @callback redactor(term()) :: term()
 
   @doc """
   Returns a label to describe the given sensitive `term`.
+
+  > #### Beware {: .warning}
+  >
+  > If you use a labeler, you must ensure it won't leak any
+  > sensitive data under any circumstances.
 
   The label will be maintained as a field within the wrapper (see
   [labeling and redacting section](#module-labeling-and-redacting))
@@ -197,7 +236,7 @@ defmodule SensitiveData.Wrapper do
         def labeler(%URI{}), do: :connection_uri
       end
 
-      DatabaseCredentials.wrap(%{username: "foo", password: "bar"})
+      DatabaseCredentials.from(fn -> %{username: "foo", password: "bar"} end)
       # #DatabaseCredentials<label: :credit_card_user_bob, ...>
   """
   @callback labeler(term()) :: term()

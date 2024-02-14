@@ -209,7 +209,8 @@ In the newly opened window, head over to the "Stack Dump" tab and browse the
 view and you'll once again see the sensitive data exposed.
 
 This type of leak can be prevented by wrapping the "SOME_SECRET" sensitive data
-within a structure implementing the `SensitiveData.Wrapper` behaviour.
+within a structure implementing the `SensitiveData.Wrapper` behaviour. See
+`c:SensitiveData.Wrapper.from/2`.
 
 [//]: # (This is used in an HTML anchor: if updated, update links with)
 [//]: # (#additional-mitigations in the URL)
@@ -221,5 +222,12 @@ article on
 [protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html).
 
 While wrapping sensitive data within a `SensitiveData.Wrapper` instance will
-conform to many recommendations in the article ()
+conform to many recommendations in the article (wrapping sensitive data in
+a closure, pruning stack traces and exception structs, deriving the
+`Inspect` protocol), it doesn't cover others which may be relevant to your
+situation (such as using the [:private option](https://erlang.org/doc/man/ets.html#new-2)
+for ETS tables containing sensitive data, flaggin the current process as
+sensitive using [:erlang.process_flag(:sensitive, true)](https://erlang.org/doc/man/erlang.html#process_flag-2)
+in processes holding sensitive data or application logic, and so on).
+
 

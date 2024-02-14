@@ -9,7 +9,13 @@ defmodule SensitiveData.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: [
-        extras: ["README.md", "pages/data_leak_prevention.md"]
+        extras: [
+          "README.md",
+          "pages/getting_started.md",
+          "pages/cheatsheet.cheatmd",
+          "pages/guiding_principles.md",
+          "pages/data_leak_prevention.md"
+        ]
       ],
       elixirc_paths: elixirc_paths(Mix.env())
     ]
