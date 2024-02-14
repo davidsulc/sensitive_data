@@ -177,13 +177,6 @@ defmodule SensitiveData.Wrapper do
             when sensitive_data_orig: term(), sensitive_data_transformed: term()
 
   @doc """
-  Returns the redacted equivalent of the sensitive term within `wrapper`.
-  """
-  # TODO document redaction order (redactor from wrap option, default redactor,
-  # fallback to Redacted)
-  @callback to_redacted(wrapper :: t()) :: term()
-
-  @doc """
   Returns a redacted equivalent of the provided sensitive `term`.
 
   > #### Beware {: .warning}
@@ -360,16 +353,6 @@ defmodule SensitiveData.Wrapper do
       # TODO: validate `into` opts is a valid target
       def exec(%__MODULE__{} = wrapper, fun, opts \\ []),
         do: SensitiveData.Wrapper.Impl.exec(wrapper, fun, opts)
-
-      @doc """
-      Returns the redacted equivalent of the sensitive term within `wrapper`.
-
-      See `c:SensitiveData.Wrapper.to_redacted/1`.
-      """
-      @impl SensitiveData.Wrapper
-      @spec to_redacted(t()) :: term()
-      def to_redacted(%__MODULE__{} = wrapper),
-        do: SensitiveData.Wrapper.Impl.to_redacted(wrapper)
     end
   end
 end

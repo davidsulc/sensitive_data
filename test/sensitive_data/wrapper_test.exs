@@ -155,21 +155,6 @@ defmodule SensitiveData.WrapperTest do
     end
   end
 
-  test "to_redacted/1" do
-    check all(data <- term(), redacted <- term()) do
-      assert SensitiveData.Redacted == SensiData.wrap(data) |> SensiData.to_redacted()
-
-      capture_log(fn ->
-        assert SensitiveData.Redacted ==
-                 SensiData.wrap(data, redactor: fn _ -> redacted end) |> SensiData.to_redacted()
-      end)
-
-      assert redacted ==
-               SensiDataCust.wrap(data, redactor: fn _ -> redacted end)
-               |> SensiDataCust.to_redacted()
-    end
-  end
-
   test "module functions only accept instances from the same module" do
     # we'll be executing SensiData functions, but with a SensiDataCust instance
     wrapper_mod = SensiData

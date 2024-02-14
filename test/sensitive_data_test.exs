@@ -62,7 +62,7 @@ defmodule SensitiveDataTest do
 
       assert SensiData.unwrap(wrapped) == term
       assert is_nil(wrapped.label)
-      assert SensiData.to_redacted(wrapped) == SensitiveData.Redacted
+      assert wrapped.redacted == SensitiveData.Redacted
 
       wrapped_by_module = SensiData.from(fn -> term end)
 
@@ -75,7 +75,7 @@ defmodule SensitiveDataTest do
 
       assert SensiDataCust.unwrap(wrapped_with_opts) == term
       assert wrapped_with_opts.label == label
-      assert SensiDataCust.to_redacted(wrapped_with_opts) == redacted
+      assert wrapped_with_opts.redacted == redacted
 
       wrapped_with_opts_by_module =
         SensiDataCust.from(fn -> term end, label: label, redactor: redactor)
@@ -89,7 +89,7 @@ defmodule SensitiveDataTest do
 
         assert SensiData.unwrap(wrapped_with_opts) == term
         assert is_nil(wrapped_with_opts.label)
-        assert SensiData.to_redacted(wrapped_with_opts) == SensitiveData.Redacted
+        assert wrapped_with_opts.redacted == SensitiveData.Redacted
       end)
     end
   end
