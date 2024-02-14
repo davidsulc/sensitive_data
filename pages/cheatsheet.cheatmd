@@ -1,0 +1,182 @@
+# Cheatsheet
+
+## Creating a Wrapper
+
+```
+defmodule MySecretData do
+  use SensitiveData.Wrapper
+end
+```
+
+## Getting Data into a Wrapper
+{:.col-2}
+
+### SensitiveData `exec/2`
+
+```
+SensitiveData.exec(
+  fn -> System.fetch_env!("DB_URI") end,
+  into: MySecretData)
+```
+
+### Wrapper `from/2`
+
+```
+MySecretData.from(fn -> System.fetch_env!("DB_URI") end)
+```
+
+## Interacting with Wrapped Data
+{:.col-2}
+
+### `map/3`
+
+The sensitive data within a container can easily be modified using `c:SensitiveData.Wrapper.map/3`:
+
+```
+# get authentication data in Basic Authentication format
+basic_credentials = MySecretData.from(fn ->
+  System.fetch_env!("BASIC_AUTH") end)
+
+# later, these credentials need to be converted
+# to username & password
+map_credentials =
+  MySecretData.map(basic_credentials, fn basic ->
+    [username, password] =
+      basic
+      |> Base.decode64!()
+      |> String.split(":")
+  end)
+```
+
+### `exec/3`
+
+Executing functions requiring sensitive data located in a wrapper can be
+accomplished with `c:SensitiveData.Wrapper.exec/3`:
+
+```
+# get authentication data
+credentials = MySecretData.from(fn ->
+  System.fetch_env!("BASIC_AUTH") end)
+
+# later, make an API request using these credentials
+{:ok, data} =
+  MySecretData.exec(credentials, fn basic_auth ->
+    get_api_results("/some/endpoint", basic_auth)
+  end)
+```
+
+## Identifying Wrapper Contents
+
+It is often useful to be able to determine some information about the sensitive
+data contained within wrappers, both for programmatic and human debuggability
+reasons.
+
+### Guards and Util
+
+Functions from the `SensitiveData.Guards` and `SensitiveData.Wrapper.Util`
+modules can help with branching logic depending (somewhat) on the sensitive
+data within the wrappers:
+
+```
+import SensitiveData.Guards
+
+alias SensitiveData.Wrapper.Util
+
+data = MySecretData.from(fn ->
+  %{foo: :yes, bar: :no} end)
+
+case data do
+  map when is_sensitive_map(map) ->
+    IO.puts("It's a map with #{Util.sensitive_map_size(map)} items")
+
+  _ ->
+    IO.puts("It's not a map")
+end
+```
+
+### Labeling
+
+TODO FIXME labeling is only available as the :label option to the module (in from/2, wrap/2)
+
+It can be useful to label sensitive data, which can be defined at the module
+level through `c:SensitiveData.Wrapper.labeler/1`:
+
+TODO test & finish
+
+```
+defmodule PatientData do
+  use SensitiveData.Wrapper
+
+  def labeler(%Patient{name: name, data_of_birth: dob}),
+    do: "#{name} (#{dob})"
+end
+```
+
+
+### Redaction
+
+TODO FIXME redaction is now specified differently (via mf or function name)
+
+It can be useful to have a redacted version of sensitive data, which can be defined at the module
+level through `c:SensitiveData.Wrapper.redactor/1`:
+
+```
+defmodule CreditCard do
+  use SensitiveData.Wrapper
+
+  def redactor(card_number) when is_binary(card_number) do
+    {<<first_number::binary-1, to_mask::binary>>, last_four} = String.split_at(card_number, -4)
+
+    IO.iodata_to_binary([first_number, List.duplicate("*", String.length(to_mask)), last_four])
+  end
+end
+```
+
+In use:
+
+```shell
+iex> CreditCard.from(fn -> "123451234512345" end)
+#CreditCard<redacted: "1**********2345", ...>
+```
+
+If configured when `use`ing `SensitiveData.Wrapper`, it is also possible to define redaction
+for a given instance:
+
+```
+defmodule Credentials do
+  use SensitiveData.Wrapper, allow_instance_redactor: true
+
+  def redactor(_term) do
+    "nothing to see here"
+  end
+end
+```
+
+In use:
+
+```shell
+iex(1)> Credentials.from(fn -> "password" end)
+#Credentials<redacted: "nothing to see here", ...>
+iex(2)> Credentials.from(fn -> "password" end, redactor: fn term -> String.duplicate("*", String.length(term)) end)
+#Credentials<redacted: "********", ...>
+```
+
+As you can see, redaction will first use the instance redactor if one is available. If not,
+it will attempt the module redactor, and if none is set it will use the static `SensitiveData.Redacted` value.
+
+## One-Off Executions
+
+In certain cases, there's is only a transient need for sensitive data, such as
+when connecting to a system: once the connection is made, the credentials
+aren't needed anymore.
+
+```
+{:ok, pid} =
+  SensitiveData.exec(fn ->
+    "DATABASE_CONNECTION_URI"
+    |> System.fetch_env!()
+    |> parse_postgres_uri()
+    |> Postgrex.start_link()
+  end)
+```
+
