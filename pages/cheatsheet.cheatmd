@@ -94,35 +94,19 @@ case data do
 end
 ```
 
-### Labeling
-
-TODO FIXME labeling is only available as the :label option to the module (in from/2, wrap/2)
-
-It can be useful to label sensitive data, which can be defined at the module
-level through `c:SensitiveData.Wrapper.labeler/1`:
-
-TODO test & finish
-
-```
-defmodule PatientData do
-  use SensitiveData.Wrapper
-
-  def labeler(%Patient{name: name, data_of_birth: dob}),
-    do: "#{name} (#{dob})"
-end
-```
-
-
 ### Redaction
 
-TODO FIXME redaction is now specified differently (via mf or function name)
-
 It can be useful to have a redacted version of sensitive data, which can be defined at the module
-level through `c:SensitiveData.Wrapper.redactor/1`:
+level with the `redactor` option given to `use`, which can be given as:
+
+- an atom: this the name of the redactor function located in the same module
+- a `{Module, func}` tuple: the redactor function `func` from module `Module` will be used for redaction
+
+In either case, the redaction function will be call with a single argument: the sensitive term.
 
 ```
 defmodule CreditCard do
-  use SensitiveData.Wrapper
+  use SensitiveData.Wrapper, redactor: :redactor
 
   def redactor(card_number) when is_binary(card_number) do
     {<<first_number::binary-1, to_mask::binary>>, last_four} = String.split_at(card_number, -4)
@@ -132,7 +116,23 @@ defmodule CreditCard do
 end
 ```
 
-In use:
+Alternatively, the same result can be achieved with:
+
+```
+defmodule MyApp.Redaction do
+  def redact_credit_card(card_number) when is_binary(card_number) do
+    {<<first_number::binary-1, to_mask::binary>>, last_four} = String.split_at(card_number, -4)
+
+    IO.iodata_to_binary([first_number, List.duplicate("*", String.length(to_mask)), last_four])
+  end
+end
+
+defmodule CreditCard do
+  use SensitiveData.Wrapper, redactor: {MyApp.Redaction, :redact_credit_card}
+end
+```
+
+In use (either implementation):
 
 ```shell
 iex> CreditCard.from(fn -> "123451234512345" end)
@@ -163,6 +163,25 @@ iex(2)> Credentials.from(fn -> "password" end, redactor: fn term -> String.dupli
 
 As you can see, redaction will first use the instance redactor if one is available. If not,
 it will attempt the module redactor, and if none is set it will use the static `SensitiveData.Redacted` value.
+
+### Labeling
+
+TODO FIXME labeling is only available as the :label option to the module (in from/2, wrap/2)
+
+It can be useful to label sensitive data, which can be defined at the module
+level through `c:SensitiveData.Wrapper.labeler/1`:
+
+TODO test & finish
+
+```
+defmodule PatientData do
+  use SensitiveData.Wrapper
+
+  def labeler(%Patient{name: name, data_of_birth: dob}),
+    do: "#{name} (#{dob})"
+end
+```
+
 
 ## One-Off Executions
 
