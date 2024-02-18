@@ -97,12 +97,18 @@ end
 ### Redaction
 
 It can be useful to have a redacted version of sensitive data, which can be defined at the module
-level with the `redactor` option given to `use`, which can be given as:
+level with the `redactor` option given to `use SensitiveData.Wrapper`, which can be given as:
 
-- an atom: this the name of the redactor function located in the same module
-- a `{Module, func}` tuple: the redactor function `func` from module `Module` will be used for redaction
+- an atom - the name of the redactor function located in the same module
+- a `{Module, func}` tuple - the redactor function `func` from module `Module` will be used for redaction
 
 In either case, the redaction function will be call with a single argument: the sensitive term.
+
+> #### Beware {: .warning}
+>
+> If you use a custom redaction strategy, you must ensure it won't leak any
+> sensitive data under any circumstances.
+
 
 ```
 defmodule CreditCard do
@@ -135,53 +141,44 @@ end
 In use (either implementation):
 
 ```shell
-iex> CreditCard.from(fn -> "123451234512345" end)
+iex(1)> cc = CreditCard.from(fn -> "123451234512345" end)
 #CreditCard<redacted: "1**********2345", ...>
+iex(2)> cc.redacted
+"1**********2345"
 ```
 
-If configured when `use`ing `SensitiveData.Wrapper`, it is also possible to define redaction
-for a given instance:
+### Labeling
+
+It can be useful to label sensitive data, for example to give scope to the given data. Labeling
+must be explicitly enabled via the `allow_label: true` option given to `use SensitiveData.Wrapper`.
+
+Once enabled at the module level, each instance of sensitive data can be labeled via the `:label` option.
+
+> #### Beware {: .warning}
+>
+> If you allow labels, you must ensure call sites aren't leaking
+> sensitive data via label values.
+
 
 ```
-defmodule Credentials do
-  use SensitiveData.Wrapper, allow_instance_redactor: true
-
-  def redactor(_term) do
-    "nothing to see here"
-  end
+defmodule DatabaseCredentials do
+  use SensitiveData.Wrapper, allow_label: true
 end
 ```
 
 In use:
 
-```shell
-iex(1)> Credentials.from(fn -> "password" end)
-#Credentials<redacted: "nothing to see here", ...>
-iex(2)> Credentials.from(fn -> "password" end, redactor: fn term -> String.duplicate("*", String.length(term)) end)
-#Credentials<redacted: "********", ...>
+```
+iex(1)> db = DatabaseCredentials.from(fn -> System.fetch_env("PROD_DB_CREDS") end, label: :prod)
+#DatabaseCredentials<label: :prod, ...>
+iex(2)> db.label
+:prod
+iex(3)> DatabaseCredentials.from(fn -> System.fetch_env("PROD_CI_CREDS") end, label: :integration)
+#DatabaseCredentials<label: :integration, ...>
 ```
 
-As you can see, redaction will first use the instance redactor if one is available. If not,
-it will attempt the module redactor, and if none is set it will use the static `SensitiveData.Redacted` value.
-
-### Labeling
-
-TODO FIXME labeling is only available as the :label option to the module (in from/2, wrap/2)
-
-It can be useful to label sensitive data, which can be defined at the module
-level through `c:SensitiveData.Wrapper.labeler/1`:
-
-TODO test & finish
-
-```
-defmodule PatientData do
-  use SensitiveData.Wrapper
-
-  def labeler(%Patient{name: name, data_of_birth: dob}),
-    do: "#{name} (#{dob})"
-end
-```
-
+If labels aren't allowed but one is passed as an option, the label will be ignored
+and a warning will be logged.
 
 ## One-Off Executions
 

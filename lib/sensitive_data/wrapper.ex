@@ -2,16 +2,83 @@ defmodule SensitiveData.Wrapper do
   @moduledoc """
   Defines a wrapper for sensitive data.
 
+  ## Using
+
+  When used, this module will implement the callbacks from this
+  `SensitiveData.Wrapper` module, making the module where the `use`
+  call is made into a sensitive data wrapper.
+
+  The options when using are:
+
+  - `:allow_label` - a boolean indicating whether the `:label` option
+    is allowed on instance wrappers (see for example `c:from/2`).
+    Defaults to `false`.
+    This option should be used with care, see
+    [redacting and labeling section](#module-redacting-and-labeling))
+  - `:redactor` - a function with which the wrapped sensitive term can
+    be appropriately redacted for display.
+    If the redactor function fails (e.g., by raising), the redacted
+    value will be set to `SensitiveData.Redacted`.
+    By default, there is no redaction.
+    This option should be used with care, see
+    [redacting and labeling section](#module-redacting-and-labeling))
+    The option can be provided as:
+    - an atom - the name of the redactor function located in the same module
+    - a `{Module, func}` tuple - the redactor function `func` from module
+      Module will be used for redaction.
+  - `:wrap` - a boolean indicating whether the `c:wrap/2` callback implementation
+    should be generated. Defaults to `false`.
+  - `:unwrap` - a boolean indicating whether the `c:unwrap/1` callback implementation
+    should be generated. Defaults to `false`.
+
   [//]: # (This is used in an HTML anchor: if updated, update links with)
-  [//]: # (#module-labeling-and-redacting in the URL)
+  [//]: # (#module-redacting-and-labeling)
 
-  ## Labeling and Redacting
+  ## Redacting and Labeling
 
-  TODO
+  It can be helpful to have some contextual information about the sensitive data contained
+  within a wrapper. Aside from [guards](SensitiveData.Guards.html), you may wish to make
+  use of:
+  - redaction at the module level (i.e., single shared redaction logic for all terms
+    wrapped by the same module)
+  - labels at the instance level (i.e., each wrapper instance can have its own different
+    label)
 
-  TODO: document can use label for matching
+  > #### Beware {: .warning}
+  >
+  > Redacting and labeling should be used with utmost care to ensure they won't leak any
+  > sensitive data under any circumstances.
+  >
+  > **If you use a custom redaction strategy**, you must ensure it won't leak sensitive
+  > information for any possible sensitive term wrapped by the module.
+  >
+  > **If you allow labeling**, you must ensure that any call site setting a label is doing so
+  > without leaking sensitive data.
 
-  TODO document __using__: allow_label, etc.
+  ### Examples
+
+      defmodule CreditCard do
+        use SensitiveData.Wrapper, allow_label: true, redactor: :redactor
+
+        def redactor(card_number) when is_binary(card_number) do
+          {<<first_number::binary-1, to_mask::binary>>, last_four} = String.split_at(card_number, -4)
+
+          IO.iodata_to_binary([first_number, List.duplicate("*", String.length(to_mask)), last_four])
+        end
+      end
+
+      iex> CreditCard.from(fn -> "123451234512345" end, label: {:type, :debit})
+      #CreditCard<redacted: "1**********2345", label: {:type, :debit}, ...>
+
+  Both the redacted value and the label will be maintained as fields within
+  the wrapper (see [labeling and redacting section](#module-labeling-and-redacting))
+  and can be used to assist in determining what the wrapped sensitive value
+  was then the wrapper is inspected (manually when debugging, via Observer,
+  dumped in crashes, and so on). Additionally both values, can be used in
+  pattern matches.
+
+  For both redacting and labeling, `nil` values will not be displayed when
+  inspecting.
   """
 
   alias SensitiveData.Redaction
@@ -21,7 +88,7 @@ defmodule SensitiveData.Wrapper do
 
   The wrapper structure should be considered opaque, aside from the `label` and
   `redacted` fields (see
-  [labeling and redacting section](#module-labeling-and-redacting)). You may
+  [redacting and labeling section](#module-redacting-and-labeling)). You may
   read and match on those fields, but accessing any other fields or directly
   modifying any field is not advised.
 
@@ -61,15 +128,13 @@ defmodule SensitiveData.Wrapper do
   Wraps the sensitive term returned by the callback to prevent unwanted data
   leaks.
 
-  The callback is executed only once during wrapper instanciation.
+  The callback is executed only once: during wrapper instanciation.
 
   ## Options
 
-  - `:label` - a label displayed when the wrapper is inspected
-  - `:redactor` - a redaction function returning the redacted equivalent of the
-    given term
-
-  TODO label & redactor options are only available if configured in `Wrapper` `use`
+  - `:label` - a label displayed when the wrapper is inspected. This option is only
+    available if the `:allow_label` option was set to `true` when `use`ing
+    `SensitiveData.Wrapper`.
 
   ## Examples
 
@@ -78,15 +143,6 @@ defmodule SensitiveData.Wrapper do
 
       MySensitiveData.from(fn -> "123451234512345" end, label: :credit_card_user_bob)
       # #MySensitiveData<label: :credit_card_user_bob, ...>
-
-      MySensitiveData.wrap(fn -> "123451234512345" end, label: :credit_card_user_bob,
-        redactor: fn credit_card_number ->
-          digits = String.split(credit_card_number, "", trim: true)
-          {to_redact, last} = Enum.split(digits, length(digits) - 4)
-          IO.iodata_to_binary([String.duplicate("*", length(to_redact)), last])
-        end)
-      # #MySensitiveData<redacted: "***********2345",
-          label: :credit_card_user_bob, ...>
   """
   @callback from(function(), wrap_opts()) :: t()
 
@@ -123,15 +179,6 @@ defmodule SensitiveData.Wrapper do
 
       MySensitiveData.wrap("123451234512345", label: :credit_card_user_bob)
       # #MySensitiveData<label: :credit_card_user_bob, ...>
-
-      MySensitiveData.wrap("123451234512345", label: :credit_card_user_bob,
-        redactor: fn credit_card_number ->
-          digits = String.split(credit_card_number, "", trim: true)
-          {to_redact, last} = Enum.split(digits, length(digits) - 4)
-          IO.iodata_to_binary([String.duplicate("*", length(to_redact)), last])
-        end)
-      # #MySensitiveData<redacted: "***********2345",
-          label: :credit_card_user_bob, ...>
   """
   @callback wrap(term(), wrap_opts()) :: t()
 
@@ -176,73 +223,13 @@ defmodule SensitiveData.Wrapper do
               t()
             when sensitive_data_orig: term(), sensitive_data_transformed: term()
 
-  # TODO delete after updating documentation: redactor specfication happens as a `use` option
-  # @doc """
-  # Returns a redacted equivalent of the provided sensitive `term`.
-
-  # > #### Beware {: .warning}
-  # >
-  # > If you use a custom redaction strategy, you must ensure it won't leak any
-  # > sensitive data under any circumstances.
-
-  # The redacted value will be maintained as a field within the wrapper (see
-  # [labeling and redacting section](#module-labeling-and-redacting))
-  # and can be used to assist in determining what the wrapped sensitive value
-  # was then the wrapper is inspected (manually when debugging, via Observer,
-  # dumped in crashes, and so on).
-
-  # ## Example
-
-  #     defmodule CreditCard do
-  #       use SensitiveData.Wrapper
-
-  #       def redactor(card_number) do
-  #         {to_mask, last_four} = String.split_at(card_number, -4)
-  #         String.duplicate("*", String.length(to_mask)) <> last_four
-  #       end
-  #     end
-
-  #     iex(1)> CreditCard.from(fn -> "123451234512345" end)
-  #     #CreditCard<redacted: "1**********2345", ...>
-  # """
-  # @callback redactor(term()) :: term()
-
-  # TODO delete after moving (?) docs
-  # @doc """
-  # Returns a label to describe the given sensitive `term`.
-
-  # > #### Beware {: .warning}
-  # >
-  # > If you use a labeler, you must ensure it won't leak any
-  # > sensitive data under any circumstances.
-
-  # The label will be maintained as a field within the wrapper (see
-  # [labeling and redacting section](#module-labeling-and-redacting))
-  # and can be used to assist in determining what the wrapped sensitive value
-  # was then the wrapper is inspected (manually when debugging, via Observer,
-  # dumped in crashes, and so on).
-
-  # ## Example
-
-  #     defmodule DatabaseCredentials do
-  #       use SensitiveData
-
-  #       def labeler(%{username: _, password: _}), do: :username_and_password
-  #       def labeler(%URI{}), do: :connection_uri
-  #     end
-
-  #     DatabaseCredentials.from(fn -> %{username: "foo", password: "bar"} end)
-  #     # #DatabaseCredentials<label: :credit_card_user_bob, ...>
-  # """
-  # @callback labeler(term()) :: term()
-
   @optional_callbacks unwrap: 1, wrap: 2
 
   defmacro __using__(opts) do
     allow_label = Keyword.get(opts, :allow_label, false)
-    gen_unwrap = Keyword.get(opts, :unwrap, false)
-    gen_wrap = Keyword.get(opts, :unwrap, false)
     redactor = Keyword.get(opts, :redactor)
+    gen_wrap = Keyword.get(opts, :wrap, false)
+    gen_unwrap = Keyword.get(opts, :unwrap, false)
 
     quote bind_quoted: [
             allow_label: allow_label,
@@ -352,9 +339,7 @@ defmodule SensitiveData.Wrapper do
 
       # we always implement this function
       # That way, it's not possible (as this function is not defoverridable) to
-      # sneak in an unsafe/incorrect redactor implemnentatation.
-      # TODO document that if the redactor function returns nil it won't be displayed when inspecting
-      # TODO document (and test) that Redacted is used for when a redactor raises
+      # sneak in an unsafe/incorrect redactor implementation.
       if redactor do
         def __sensitive_data_redactor__(), do: unquote(redactor)
       else

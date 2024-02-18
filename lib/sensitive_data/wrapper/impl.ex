@@ -114,7 +114,6 @@ defmodule SensitiveData.Wrapper.Impl do
       try do
         case apply(wrapper_mod, :__sensitive_data_redactor__, []) do
           nil -> nil
-          # TODO document use option
           {mod_name, fn_name} -> apply(mod_name, fn_name, [updated_data])
           fn_name -> apply(wrapper_mod, fn_name, [updated_data])
         end

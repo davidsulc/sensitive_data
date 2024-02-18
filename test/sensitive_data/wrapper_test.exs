@@ -184,6 +184,12 @@ defmodule SensitiveData.WrapperTest do
     assert [] == remaining, "some functions are neither tested nor ignored: #{inspect(remaining)}"
   end
 
+  test "redaction failure results in Redacted" do
+    data = WrapperFailingRedactor.from(fn -> "foo" end)
+
+    assert data.redacted == SensitiveData.Redacted
+  end
+
   defp wrap_opts() do
     bind(term(), fn label ->
       one_of([constant([]), constant(label: label)])
