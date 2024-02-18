@@ -297,7 +297,7 @@ defmodule SensitiveData.Wrapper do
         unless disallowed == [],
           do:
             Logger.warning("""
-            dropping disallowed options in call to #{__MODULE__}.wrap/2:
+            dropping disallowed wrapper options:
 
               #{disallowed |> Keyword.keys() |> inspect()}
             """)

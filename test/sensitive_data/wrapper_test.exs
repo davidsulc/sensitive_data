@@ -8,7 +8,7 @@ defmodule SensitiveData.WrapperTest do
   require SensitiveData.Guards
 
   # wrapper instances used for testing
-  alias Wrappers.{SensiData, SensiDataCust}
+  alias Wrappers.{FailingRedactor, SensiData, SensiDataCust}
 
   doctest SensitiveData.Wrapper
 
@@ -185,9 +185,33 @@ defmodule SensitiveData.WrapperTest do
   end
 
   test "redaction failure results in Redacted" do
-    data = WrapperFailingRedactor.from(fn -> "foo" end)
+    data = FailingRedactor.from(fn -> "foo" end)
 
     assert data.redacted == SensitiveData.Redacted
+  end
+
+  test "using disallowed label option gets logged" do
+    for data_provider <- [
+          fn -> SensiData.from(fn -> "foo" end, label: :test) end,
+          fn -> SensiData.wrap("foo", label: :test) end,
+          fn -> SensitiveData.exec(fn -> "foo" end, into: {SensiData, label: :test}) end,
+          fn ->
+            base_data = SensiDataCust.from(fn -> "foo" end)
+            SensiDataCust.exec(base_data, fn _term -> "foo" end, into: {SensiData, label: :test})
+          end
+        ] do
+      log =
+        capture_log(fn ->
+          data = data_provider.()
+
+          assert data.label == nil
+        end)
+
+      assert String.contains?(
+               log,
+               "dropping disallowed wrapper options"
+             )
+    end
   end
 
   defp wrap_opts() do

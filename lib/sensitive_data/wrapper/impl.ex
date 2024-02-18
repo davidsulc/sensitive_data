@@ -79,7 +79,7 @@ defmodule SensitiveData.Wrapper.Impl do
     unless dropped == [],
       do:
         Logger.warning("""
-        dropping invalid options in call to #{__MODULE__}.wrap/2:
+        dropping invalid wrapper options:
 
           #{dropped |> Keyword.keys() |> inspect()}
         """)
