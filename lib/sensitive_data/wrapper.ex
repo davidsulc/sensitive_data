@@ -205,7 +205,7 @@ defmodule SensitiveData.Wrapper do
 
   Executes the provided function with the sensitive term provided as the function argument, ensuring no data leaks in case of error.
 
-  The unwrapped result of the callback exeution is then returned.
+  The unwrapped result of the callback execution is then returned.
 
   TODO document into option
   TODO label & redactor options are only available if configured in `Wrapper` `use`
