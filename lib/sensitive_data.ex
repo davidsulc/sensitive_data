@@ -2,15 +2,19 @@ defmodule SensitiveData do
   @moduledoc """
   Documentation for `SensitiveData`.
 
-  ## Further Considerations
+  This library aims to provide easy and convenient functionality to make following
+  the [Erlang Ecosystem Foundation](https://erlef.org/)'s recommendations regarding
+  [protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html)
+  more convenient, thereby making it less likely that sensitive data is mishandled.
 
-  TODO
-
-  - add'l SEC WG recommendations
-    - flag process as sensitive
-    - impl Inspect for any struct w/ sensitive data
-    - impl format state
-    - etc.
+  While wrapping sensitive data within a `SensitiveData.Wrapper` instance will
+  conform to many recommendations in the article (wrapping sensitive data in
+  a closure, pruning stack traces and exception structs, deriving the
+  `Inspect` protocol), it doesn't cover others which may be relevant to your
+  situation (such as using the [:private option](https://erlang.org/doc/man/ets.html#new-2)
+  for ETS tables containing sensitive data, flagging the current process as
+  sensitive using [:erlang.process_flag(:sensitive, true)](https://erlang.org/doc/man/erlang.html#process_flag-2)
+  in processes holding sensitive data or application logic, and so on).
   """
 
   alias SensitiveData.Redaction
@@ -22,12 +26,6 @@ defmodule SensitiveData do
           into: Wrapper.spec()
         ]
 
-  into_opts_doc = """
-  - `:into` - a `t:SensitiveData.Wrapper.spec/0` within which to wrap the
-    input obtained from stdin. By default the value is not wrapped and is
-    returned as is.
-  """
-
   @doc ~s"""
   Executes the provided function, ensuring no data leaks in case of error.
 
@@ -37,7 +35,8 @@ defmodule SensitiveData do
     `SensitiveData.Redaction.redact_exception/2`
   - `:stacktrace_redaction` - will be passed on to
     `SensitiveData.Redaction.redact_stacktrace/2`
-  #{into_opts_doc}
+  - `:into` - a `t:SensitiveData.Wrapper.spec/0` value into which the `fun` execution
+    result should be wrapped.
 
   ## Examples
 
@@ -70,10 +69,6 @@ defmodule SensitiveData do
       SensitiveData.exec(fn ->
         System.fetch_env!("DATABASE_PASSWORD")
       end, into: SecretData)
-
-
-  TODO document into: {Foo, label: ..., redactor: ...} version, but also mention
-  options are ignored unless allowed in call to `use`
   """
   @spec exec((-> result), exec_opts()) :: result when result: term() | no_return()
   def exec(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do
@@ -97,7 +92,9 @@ defmodule SensitiveData do
 
   ## Options
 
-  #{into_opts_doc}
+  - `:into` - a `t:SensitiveData.Wrapper.spec/0` value into which the input should
+    be wrapped. By default, the input is not wrapped and is returned as-is, similarly
+    to `IO.gets/2`.
 
   ## Examples
 

@@ -13,10 +13,6 @@ defmodule SensitiveData.Redaction do
 
   alias SensitiveData.Redacted
 
-  @typedoc """
-  A redaction function returning the redacted equivalent of the given term.
-  """
-  @type redactor :: (term() -> term())
   @type exception_redaction_strategy :: exception_redactor_fun() | redaction_strategy_name()
   @type stacktrace_redaction_strategy :: stacktrace_redactor_fun() | redaction_strategy_name()
   @typedoc """

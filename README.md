@@ -1,6 +1,8 @@
 # SensitiveData
 
-A library dealing with sensitive data and leak prevention.
+A library for dealing with sensitive data and leak prevention.
+
+For a quick overview, take a look at the [Getting Started](getting_started.html) and [Cheatsheet](cheatsheet.html) pages.
 
 ## Installation
 

@@ -226,8 +226,6 @@ conform to many recommendations in the article (wrapping sensitive data in
 a closure, pruning stack traces and exception structs, deriving the
 `Inspect` protocol), it doesn't cover others which may be relevant to your
 situation (such as using the [:private option](https://erlang.org/doc/man/ets.html#new-2)
-for ETS tables containing sensitive data, flaggin the current process as
+for ETS tables containing sensitive data, flagging the current process as
 sensitive using [:erlang.process_flag(:sensitive, true)](https://erlang.org/doc/man/erlang.html#process_flag-2)
 in processes holding sensitive data or application logic, and so on).
-
-

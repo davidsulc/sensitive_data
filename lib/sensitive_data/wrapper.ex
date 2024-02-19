@@ -113,9 +113,11 @@ defmodule SensitiveData.Wrapper do
   @typedoc """
   Wrapping options.
 
+  Invalid or unsupported values will be ignored and logged.
+
   See `c:SensitiveData.Wrapper.from/2`.
   """
-  @type wrap_opts :: [label: term(), redactor: Redaction.redactor()]
+  @type wrap_opts :: [label: term()]
 
   @typedoc """
   Execution options.
@@ -206,9 +208,6 @@ defmodule SensitiveData.Wrapper do
   Executes the provided function with the sensitive term provided as the function argument, ensuring no data leaks in case of error.
 
   The unwrapped result of the callback execution is then returned.
-
-  TODO document into option
-  TODO label & redactor options are only available if configured in `Wrapper` `use`
   """
   @callback exec(wrapper :: t(), (sensitive_data -> result), exec_opts()) :: result
             when sensitive_data: term(), result: term()
