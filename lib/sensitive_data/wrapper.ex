@@ -2,6 +2,9 @@ defmodule SensitiveData.Wrapper do
   @moduledoc """
   Defines a wrapper for sensitive data.
 
+  [//]: # (This is used in an HTML anchor: if updated, update links with)
+  [//]: # (#module-using)
+
   ## Using
 
   When used, this module will implement the callbacks from this
@@ -111,6 +114,9 @@ defmodule SensitiveData.Wrapper do
   @typedoc """
   Wrapping options.
 
+  Allowable options are configured during `use` invocation, see
+  [Using section](#module-using).
+
   Invalid or unsupported values will be ignored and logged.
 
   See `c:SensitiveData.Wrapper.from/2`.
@@ -203,7 +209,8 @@ defmodule SensitiveData.Wrapper do
   @doc """
   Returns the result of the callback invoked with the sensitive term.
 
-  Executes the provided function with the sensitive term provided as the function argument, ensuring no data leaks in case of error.
+  Executes the provided function with the sensitive term provided as the function argument,
+  ensuring no data leaks in case of error.
 
   The unwrapped result of the callback execution is then returned.
   """
@@ -212,9 +219,6 @@ defmodule SensitiveData.Wrapper do
 
   @doc """
   Invokes the callback on the wrapped sensitive term and returns the wrapped result.
-
-  TODO document into option
-  TODO label & redactor options are only available if configured in `Wrapper` `use`
   """
   @callback map(wrapper :: t(), (sensitive_data_orig -> sensitive_data_transformed), wrap_opts()) ::
               t()
@@ -330,7 +334,6 @@ defmodule SensitiveData.Wrapper do
       """
       @impl SensitiveData.Wrapper
       @spec exec(t(), (term() -> term()), SensitiveData.Wrapper.exec_opts()) :: term()
-      # TODO: validate `into` opts is a valid target
       def exec(%__MODULE__{} = wrapper, fun, opts \\ []),
         do: SensitiveData.Wrapper.Impl.exec(wrapper, fun, opts)
 
