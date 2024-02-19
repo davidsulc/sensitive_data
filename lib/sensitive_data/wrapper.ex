@@ -62,12 +62,12 @@ defmodule SensitiveData.Wrapper do
 
         def redactor(card_number) when is_binary(card_number) do
           {<<first_number::binary-1, to_mask::binary>>, last_four} = String.split_at(card_number, -4)
-
           IO.iodata_to_binary([first_number, List.duplicate("*", String.length(to_mask)), last_four])
         end
       end
 
-      iex> CreditCard.from(fn -> "123451234512345" end, label: {:type, :debit})
+      # in IEx:
+      CreditCard.from(fn -> "123451234512345" end, label: {:type, :debit})
       #CreditCard<redacted: "1**********2345", label: {:type, :debit}, ...>
 
   Both the redacted value and the label will be maintained as fields within
