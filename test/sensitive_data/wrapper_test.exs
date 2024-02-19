@@ -87,10 +87,9 @@ defmodule SensitiveData.WrapperTest do
       capture_log(fn ->
         wrapped = SensiData.wrap(term, my_wrap_opts)
 
-        # check that label and redactor are ignored
+        # check that label is ignored
         mapped = SensiData.map(wrapped, fn _ -> map_result end, map_opts)
         assert is_nil(mapped.label)
-        assert is_nil(mapped.redacted)
         unwrapped = SensiData.unwrap(mapped)
         assert unwrapped == map_result
       end)
@@ -99,8 +98,8 @@ defmodule SensitiveData.WrapperTest do
 
       expected_label = Keyword.get(map_opts, :label, wrapped.label)
 
-      # check that label and redactor are updated and applied if given as opts,
-      # otherwise the existing label and redactor are kept
+      # check that label is updated and applied if given as opts,
+      # otherwise the existing label is kept
       mapped = SensiDataCust.map(wrapped, fn _ -> map_result end, map_opts)
       assert expected_label == mapped.label
       unwrapped = SensiDataCust.unwrap(mapped)
@@ -118,7 +117,7 @@ defmodule SensitiveData.WrapperTest do
       wrapped = SensiDataCust.wrap(term, my_wrap_opts)
 
       capture_log(fn ->
-        # check that label and redactor are ignored
+        # check that label is ignored
         result =
           SensiDataCust.exec(wrapped, fn _ -> exec_result end, into: {SensiData, into_opts})
 
@@ -131,7 +130,7 @@ defmodule SensitiveData.WrapperTest do
         capture_log(fn ->
           wrapped = SensiData.wrap(term)
 
-          # check that label and redactor are applied
+          # check that label is applied
           result =
             SensiData.exec(wrapped, fn _ -> exec_result end, into: {SensiDataCust, into_opts})
 

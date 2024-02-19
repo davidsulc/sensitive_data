@@ -81,8 +81,6 @@ defmodule SensitiveData.Wrapper do
   inspecting.
   """
 
-  alias SensitiveData.Redaction
-
   @typedoc """
   A wrapper containing sensitive data.
 
