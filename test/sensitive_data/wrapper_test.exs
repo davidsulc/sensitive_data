@@ -107,7 +107,6 @@ defmodule SensitiveData.WrapperTest do
     end
   end
 
-  @tag :wip
   test "exec/3" do
     check all(
             term <- term(),

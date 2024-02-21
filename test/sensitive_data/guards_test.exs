@@ -2,40 +2,11 @@ defmodule SensitiveData.GuardsTest do
   use ExUnit.Case, async: true
   import ExUnitProperties
 
+  import Exceptions
   import StreamData
   import SensitiveData.Guards
 
   alias Wrappers.SensiData
-
-  @exception_names_with_message [
-    ArithmeticError,
-    ArgumentError,
-    Enum.EmptyError,
-    Enum.OutOfBoundsError,
-    OptionParser.ParseError,
-    Regex.CompileError,
-    RuntimeError
-  ]
-
-  @exception_names_with_term [
-    BadFunctionError,
-    BadFunctionError,
-    BadMapError,
-    BadStructError,
-    CaseClauseError,
-    MatchError,
-    TryClauseError,
-    WithClauseError
-  ]
-
-  @exception_names_other [
-    BadArityError,
-    Code.LoadError,
-    KeyError
-  ]
-
-  @exception_names @exception_names_with_message ++
-                     @exception_names_with_term ++ @exception_names_other
 
   test "is_sensitive/1 guard" do
     check all(data <- one_of(Keyword.values(generators()))) do
@@ -154,7 +125,7 @@ defmodule SensitiveData.GuardsTest do
     check all(
             {exception, not_exception_name} <-
               bind(exception(), fn e ->
-                bind_filter(member_of(@exception_names), fn other_name ->
+                bind_filter(member_of(exception_names()), fn other_name ->
                   %exception_name{} = e
 
                   case other_name == exception_name do
@@ -215,56 +186,6 @@ defmodule SensitiveData.GuardsTest do
       tuple: bind(list_of(term()), fn list -> constant(List.to_tuple(list)) end)
     ]
   end
-
-  defp exception() do
-    one_of([
-      exception_with_message(),
-      exception_with_term(),
-      exception_with_multiple_args()
-    ])
-  end
-
-  defp exception_with_message() do
-    bind(member_of(exception_names_with_message()), fn e ->
-      bind(string(:alphanumeric, min_length: 1), fn arg ->
-        constant(apply(e, :exception, [arg]))
-      end)
-    end)
-  end
-
-  defp exception_with_term() do
-    bind(member_of(exception_names_with_term()), fn e ->
-      bind(term(), fn arg ->
-        constant(apply(e, :exception, [[term: arg]]))
-      end)
-    end)
-  end
-
-  defp exception_with_multiple_args() do
-    one_of([exception_bad_arity_error(), exception_key_error(), exception_code_load_error()])
-  end
-
-  defp exception_bad_arity_error() do
-    bind({atom(:alphanumeric), list_of(term())}, fn {function, args} ->
-      constant(BadArityError.exception(function: function, args: args))
-    end)
-  end
-
-  defp exception_key_error() do
-    bind({atom(:alphanumeric), term(), string(:printable)}, fn {key, term, message} ->
-      constant(KeyError.exception(key: key, term: term, message: message))
-    end)
-  end
-
-  defp exception_code_load_error() do
-    bind({atom(:alphanumeric), string(:printable)}, fn {file, reason} ->
-      constant(Code.LoadError.exception(file: file, reason: reason))
-    end)
-  end
-
-  defp exception_names_with_message(), do: @exception_names_with_message
-
-  defp exception_names_with_term(), do: @exception_names_with_term
 
   defp function(arity \\ :any) do
     arity_generator =
