@@ -93,11 +93,9 @@ defmodule SensitiveDataTest do
   end
 
   test "exec into with invalid :into target" do
-    for into_opts <- [List, {List, [:foo, :bar]}, "foo"] do
-      assert_raise(ArgumentError, "provided `:into` opts did not result in a valid wrapper", fn ->
-        exec(fn -> :foo end, into: into_opts)
-      end)
-    end
+    assert_invalid_into_opts_raise(fn into_opts ->
+      exec(fn -> :foo end, into: into_opts)
+    end)
   end
 
   test "gets_sensitive/2" do
@@ -109,7 +107,7 @@ defmodule SensitiveDataTest do
 
       captured =
         capture_io(input, fn ->
-          send(me, {ref, SensitiveData.gets_sensitive("Your password: ")})
+          send(me, {ref, gets_sensitive("Your password: ")})
         end)
 
       assert String.trim(captured) == "Your password:"
@@ -123,8 +121,7 @@ defmodule SensitiveDataTest do
         capture_io(input, fn ->
           send(
             me,
-            {ref,
-             SensitiveData.gets_sensitive("Your password: ", into: {SensiDataCust, label: label})}
+            {ref, gets_sensitive("Your password: ", into: {SensiDataCust, label: label})}
           )
         end)
 
@@ -138,6 +135,22 @@ defmodule SensitiveDataTest do
       after
         0 -> raise "no wrapper instance received from gets_sensitive"
       end
+    end
+  end
+
+  test "gets_sensitive with invalid :into target" do
+    assert_invalid_into_opts_raise(fn into_opts ->
+      capture_io("foo", fn ->
+        gets_sensitive("Your password: ", into: into_opts)
+      end)
+    end)
+  end
+
+  defp assert_invalid_into_opts_raise(callback) do
+    for into_opts <- [List, {List, [:foo, :bar]}, "foo"] do
+      assert_raise(ArgumentError, "provided `:into` opts did not result in a valid wrapper", fn ->
+        callback.(into_opts)
+      end)
     end
   end
 end
