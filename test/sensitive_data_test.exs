@@ -1,10 +1,12 @@
 defmodule SensitiveDataTest do
   use ExUnit.Case, async: false
   import ExUnit.CaptureLog, only: [capture_log: 1]
+  import ExUnit.CaptureIO, only: [capture_io: 2]
   import ExUnitProperties
 
   import StreamData
   import SensitiveData
+  import SensitiveData.Guards
 
   alias Wrappers.{SensiData, SensiDataCust}
 
@@ -95,6 +97,47 @@ defmodule SensitiveDataTest do
       assert_raise(ArgumentError, "provided `:into` opts did not result in a valid wrapper", fn ->
         exec(fn -> :foo end, into: into_opts)
       end)
+    end
+  end
+
+  test "gets_sensitive/2" do
+    check all(input <- string(:printable, min_length: 1)) do
+      me = self()
+
+      # basic gets
+      ref = make_ref()
+
+      captured =
+        capture_io(input, fn ->
+          send(me, {ref, SensitiveData.gets_sensitive("Your password: ")})
+        end)
+
+      assert String.trim(captured) == "Your password:"
+      assert_received({^ref, ^input})
+
+      # wrapping the return value
+      ref = make_ref()
+      label = :my_label
+
+      captured =
+        capture_io(input, fn ->
+          send(
+            me,
+            {ref,
+             SensitiveData.gets_sensitive("Your password: ", into: {SensiDataCust, label: label})}
+          )
+        end)
+
+      assert String.trim(captured) == "Your password:"
+
+      receive do
+        {^ref, wrapped} ->
+          assert is_sensitive(wrapped, SensiDataCust)
+          assert wrapped.label == label
+          assert SensiDataCust.unwrap(wrapped) == input
+      after
+        0 -> raise "no wrapper instance received from gets_sensitive"
+      end
     end
   end
 end

@@ -25,6 +25,18 @@ SensitiveData.exec(
 MySecretData.from(fn -> System.fetch_env!("DB_URI") end)
 ```
 
+### From `:stdio`
+
+```
+SensitiveData.gets_sensitive("Your password: ", into: MySecretData)
+```
+
+or alternatively
+
+```
+MySecretData.from(fn -> SensitiveData.gets_sensitive("Your password: ") end)
+```
+
 ## Interacting with Wrapped Data
 {:.col-2}
 
@@ -102,7 +114,7 @@ level with the `redactor` option given to `use SensitiveData.Wrapper`, which can
 - an atom - the name of the redactor function located in the same module
 - a `{Module, func}` tuple - the redactor function `func` from module `Module` will be used for redaction
 
-In either case, the redaction function will be call with a single argument: the sensitive term.
+In either case, the redaction function will be called with a single argument: the sensitive term.
 
 > #### Beware {: .warning}
 >
