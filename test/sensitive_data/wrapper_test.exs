@@ -8,7 +8,7 @@ defmodule SensitiveData.WrapperTest do
   require SensitiveData.Guards
 
   # wrapper instances used for testing
-  alias Wrappers.{FailingRedactor, SensiData, SensiDataCust}
+  alias Wrappers.{ExternalRedactor, FailingRedactor, SensiData, SensiDataCust}
 
   doctest SensitiveData.Wrapper
 
@@ -107,6 +107,7 @@ defmodule SensitiveData.WrapperTest do
     end
   end
 
+  @tag :wip
   test "exec/3" do
     check all(
             term <- term(),
@@ -124,6 +125,11 @@ defmodule SensitiveData.WrapperTest do
         assert is_nil(result.label)
         assert is_nil(result.redacted)
         assert SensiData.unwrap(result) == exec_result
+
+        result_no_label =
+          SensiDataCust.exec(wrapped, fn _ -> exec_result end, into: SensiData)
+
+        assert result == result_no_label
       end)
 
       log =
@@ -140,6 +146,17 @@ defmodule SensitiveData.WrapperTest do
 
       assert log == ""
     end
+  end
+
+  test "exec logs invalid and disallowed into opts" do
+    log =
+      capture_log(fn ->
+        SensiDataCust.wrap(:foo)
+        |> SensiDataCust.exec(fn _ -> :bar end, into: {SensiData, label: :label, foo: :bar})
+      end)
+
+    assert String.contains?(log, "dropping invalid wrapper options:\n\n  [:foo]")
+    assert String.contains?(log, "dropping disallowed wrapper options:\n\n  [:label]")
   end
 
   test "module functions only accept instances from the same module" do
@@ -181,6 +198,12 @@ defmodule SensitiveData.WrapperTest do
 
     # if this fails, add the functions to either the `functions_to_test` or the `ignored_functions`
     assert [] == remaining, "some functions are neither tested nor ignored: #{inspect(remaining)}"
+  end
+
+  test "external redaction works" do
+    data = ExternalRedactor.from(fn -> "foo" end)
+
+    assert data.redacted == "external redaction"
   end
 
   test "redaction failure results in Redacted" do
