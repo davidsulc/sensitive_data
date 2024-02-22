@@ -130,7 +130,11 @@ defmodule SensitiveData.RedactionTest do
       end
 
     orig_last_line = last_stacktrace_line(stacktrace)
-    assert {Enum, :"-map/2-lists^map/1-1-", 2} = orig_last_line
+
+    # this appears to have changed between Elixir v. 1.14.5 and 1.15.1
+    assert match?({Enum, :"-map/2-lists^map/1-1-", 2}, orig_last_line) or
+             match?({Enum, :"-map/2-lists^map/1-0-", 2}, orig_last_line)
+
     assert ^orig_last_line = do_redact_stacktrace(stacktrace)
     assert ^orig_last_line = do_redact_stacktrace(stacktrace, redactor)
   end
