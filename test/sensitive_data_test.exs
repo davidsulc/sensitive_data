@@ -99,7 +99,20 @@ defmodule SensitiveDataTest do
   end
 
   test "gets_sensitive/2" do
-    check all(input <- string(:printable, min_length: 1)) do
+    check all(
+            # remove carriage returns: they'll never be part of the
+            # returned string since they in fact trigger the returning
+            # of the result (i.e. pressing "enter" indicates you're
+            # done with inputing the string)
+            input <-
+              filter(
+                bind(
+                  string(:printable, min_length: 1),
+                  &constant(String.replace(&1, ["\n", "\r\n"], ""))
+                ),
+                &(String.length(&1) > 0)
+              )
+          ) do
       me = self()
 
       # basic gets
