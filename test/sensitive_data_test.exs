@@ -98,6 +98,54 @@ defmodule SensitiveDataTest do
     end)
   end
 
+  test "exec with exception_redaction" do
+    secret = "SOME SECRET"
+    me = self()
+    ref = make_ref()
+
+    exception_redactor = fn term, value_type ->
+      send(me, {ref, term, value_type})
+      term
+    end
+
+    try do
+      exec(fn -> Map.get(secret, :some_key) end, exception_redaction: exception_redactor)
+    rescue
+      _ -> :ok
+    end
+
+    assert_received({^ref, ^secret, :term})
+
+    try do
+      exec(fn -> Enum.map([secret], fn _, _ -> :bad end) end,
+        exception_redaction: exception_redactor
+      )
+    rescue
+      _ -> :ok
+    end
+
+    assert_received({^ref, [^secret], :args})
+  end
+
+  test "exec with stacktrace_redaction" do
+    secret = "SOME SECRET"
+    me = self()
+    ref = make_ref()
+
+    stacktrace_redactor = fn args ->
+      send(me, {ref, args})
+      args
+    end
+
+    try do
+      exec(fn -> Map.get(secret, :some_key) end, stacktrace_redaction: stacktrace_redactor)
+    rescue
+      _ -> :ok
+    end
+
+    assert_received({^ref, [^secret, :some_key, nil]})
+  end
+
   test "gets_sensitive/2" do
     check all(
             # remove carriage returns: they'll never be part of the
