@@ -267,6 +267,9 @@ defmodule SensitiveData.Wrapper do
         do:
           SensitiveData.Wrapper.Impl.from(provider,
             into: {__MODULE__, filter_wrap_opts(opts)}
+            # TODO: redaction options need to be taken into account here
+            # => these are the options for the exec within from and NOT
+            # the redaction options for the into module (those are taken from use args)
           )
 
       if gen_wrap do
@@ -337,9 +340,10 @@ defmodule SensitiveData.Wrapper do
       def exec(%__MODULE__{} = wrapper, fun, opts \\ []),
         do: SensitiveData.Wrapper.Impl.exec(wrapper, fun, opts)
 
-      # we always implement this function
-      # That way, it's not possible (as this function is not defoverridable) to
-      # sneak in an unsafe/incorrect redactor implementation.
+      # we always implement these functions
+      # That way, it's not possible (as these function aren't defoverridable) to
+      # sneak in an unsafe/incorrect implementations.
+
       if redactor do
         def __sensitive_data_redactor__(), do: unquote(redactor)
       else

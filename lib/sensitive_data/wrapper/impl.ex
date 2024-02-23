@@ -26,6 +26,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
   require Logger
 
+  alias SensitiveData.InvalidIntoOptionError
   alias SensitiveData.Redacted
   alias SensitiveData.Wrapper
 
@@ -33,11 +34,6 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec from(function(), Keyword.t()) :: Wrapper.t()
   def from(provider, opts) when is_function(provider, 0) and is_list(opts) do
-    raise_invalid_target = fn ->
-      raise ArgumentError,
-        message: "provided `:into` opts did not result in a valid wrapper"
-    end
-
     SensitiveData.exec(fn ->
       term = provider.()
 
@@ -45,14 +41,16 @@ defmodule SensitiveData.Wrapper.Impl do
         case Keyword.fetch!(opts, :into) do
           {mod, opts} when is_atom(mod) and is_list(opts) -> {mod, opts}
           mod when is_atom(mod) -> {mod, []}
-          _ -> raise_invalid_target.()
+          _ -> raise InvalidIntoOptionError
         end
+
+      unless wrapper_like_module?(wrapper_mod), do: raise(InvalidIntoOptionError)
 
       filtered_opts =
         try do
           filter_wrap_opts(wrapper_opts, wrapper_mod)
         rescue
-          _ -> raise_invalid_target.()
+          _ -> raise InvalidIntoOptionError
         end
 
       wrapper =
@@ -60,10 +58,19 @@ defmodule SensitiveData.Wrapper.Impl do
         |> struct!(into_struct_shape(filtered_opts))
         |> map(fn _ -> term end, filtered_opts)
 
-      unless is_sensitive(wrapper), do: raise_invalid_target.()
+      unless is_sensitive(wrapper), do: raise(InvalidIntoOptionError)
 
       wrapper
     end)
+  end
+
+  # this doesn't guarantee that `true` comes from a proper wrapper module
+  @spec wrapper_like_module?(term()) :: boolean()
+  defp wrapper_like_module?(name) when is_atom(name) do
+    # required from function_exported? to work properly
+    # note that `name` may not be a module!
+    _ = Code.ensure_loaded(name)
+    function_exported?(name, :from, 2)
   end
 
   @doc false

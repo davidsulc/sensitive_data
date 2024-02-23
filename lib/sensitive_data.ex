@@ -18,6 +18,7 @@ defmodule SensitiveData do
   """
 
   alias SensitiveData.Redaction
+  alias SensitiveData.Redactors
   alias SensitiveData.Wrapper
 
   @type exec_opts :: [
@@ -33,9 +34,9 @@ defmodule SensitiveData do
 
   - `:into` - a `t:SensitiveData.Wrapper.spec/0` value into which the `fun` execution
     result should be wrapped.
-  - `:exception_redaction` - the `t:SensitiveData.Redaction.exception_redaction_strategy/0`
+  - `:exception_redactor` - the `t:SensitiveData.Redaction.exception_redaction_strategy/0`
     to use when redacting an `t:Exception.t/0`. Defaults to `:strip`.
-  - `:stacktrace_redaction` - the `t:SensitiveData.Redaction.stacktrace_redaction_strategy/0`
+  - `:stacktrace_redactor` - the `t:SensitiveData.Redaction.stacktrace_redaction_strategy/0`
     to use when redacting a stack trace. Defaults to `:strip`.
 
   ## Examples
@@ -46,22 +47,7 @@ defmodule SensitiveData do
       iex> SensitiveData.exec(fn ->
       ...>   Map.get("SOME_PASSWORD", :foobar)
       ...> end)
-      ** (BadMapError) expected a map, got: SensitiveData.Redacted
-
-      iex> SensitiveData.exec(fn ->
-      ...>     Map.get("SOME_PASSWORD", :foobar)
-      ...>   end,
-      ...>   exception_redaction: fn val, :term ->
-      ...>     case is_binary(val) do
-      ...>       true ->
-      ...>         [h | t] = String.split(val, "", trim: true)
-      ...>         IO.iodata_to_binary([h, String.duplicate("*", length(t))])
-      ...>
-      ...>       false ->
-      ...>         SensitiveData.Redacted
-      ...>   end
-      ...> end)
-      ** (BadMapError) expected a map, got: "S************"
+      ** (SensitiveData.RedactedException) an exception of type `BadMapError` was raised in a sensitive context
 
   Passing the execution result to a `SecretData` module implementing
   the `SensitiveData.Wrapper` behaviour:
@@ -78,11 +64,13 @@ defmodule SensitiveData do
         fun.()
       rescue
         e ->
-          exception_opts = Keyword.get(opts, :exception_redaction, :strip)
-          stacktrace_opts = Keyword.get(opts, :stacktrace_redaction, :strip)
+          exception_redactor = Keyword.get(opts, :exception_redactor, &Redactors.Exception.drop/1)
 
-          reraise Redaction.redact_exception(e, exception_opts),
-                  Redaction.redact_stacktrace(__STACKTRACE__, stacktrace_opts)
+          stacktrace_redactor =
+            Keyword.get(opts, :stacktrace_redactor, &Redactors.Stacktrace.strip/1)
+
+          reraise Redaction.redact_exception(e, exception_redactor),
+                  Redaction.redact_stacktrace(__STACKTRACE__, stacktrace_redactor)
       end
 
     maybe_wrap(raw_data, opts)
@@ -112,10 +100,11 @@ defmodule SensitiveData do
   @spec gets_sensitive(prompt, into: Wrapper.spec()) :: user_input
         when prompt: String.t(), user_input: String.t()
   def gets_sensitive(prompt, opts \\ []) do
-    exec(fn ->
-      SensitiveData.IO.gets_sensitive(prompt)
-      |> maybe_wrap(opts)
-    end)
+    # exec(fn ->
+    SensitiveData.IO.gets_sensitive(prompt)
+    |> maybe_wrap(opts)
+
+    # end)
   end
 
   defp maybe_wrap(raw_data, opts) do

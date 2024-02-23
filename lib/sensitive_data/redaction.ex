@@ -1,18 +1,21 @@
 defmodule SensitiveData.Redaction do
-  @moduledoc """
-  Functions for redacting information.
+  @moduledoc false
+  # TODO cleanup docs
+  # TODO remove obsolete typespecs e.g. redaction_strategy_name
+  # @moduledoc """
+  # Functions for redacting information.
 
-  > ### Tip {: .tip}
-  >
-  >In typical use, there's no need to call these functions directly:
-  >`SensitiveData.exec/1` as well as the callbacks defined in `SensitiveData.Wrapper`
-  >should be used instead as they will handle redaction duties upon failiure and call the
-  >necessary functions from this module.
-  """
+  # > ### Tip {: .tip}
+  # >
+  # >In typical use, there's no need to call these functions directly:
+  # >`SensitiveData.exec/1` as well as the callbacks defined in `SensitiveData.Wrapper`
+  # >should be used instead as they will handle redaction duties upon failiure and call the
+  # >necessary functions from this module.
+  # """
 
   require Logger
 
-  alias SensitiveData.Redacted
+  alias SensitiveData.InvalidIntoOptionError
 
   @type exception_redaction_strategy :: exception_redactor_fun() | redaction_strategy_name()
   @type stacktrace_redaction_strategy :: stacktrace_redactor_fun() | redaction_strategy_name()
@@ -76,49 +79,52 @@ defmodule SensitiveData.Redaction do
       ...> end)
       %BadMapError{term: "SOM********"}
   """
-  @spec redact_exception(Exception.t(), exception_redaction_strategy()) :: Exception.t()
-  def redact_exception(e, redaction_strategy \\ :strip) when is_exception(e) do
-    redactor_fun =
-      case redaction_strategy do
-        :strip -> exception_redactor_from_strategy(:strip)
-        fun when is_function(fun, 2) -> fun
-      end
 
+  # we don't want to redact "internal errors" as
+  # - we know they don't leak sensitive data
+  # - we want users to know what went wrong in their use of this library so they can fix it
+  @spec redact_exception(Exception.t(), exception_redactor_fun()) :: Exception.t()
+
+  def redact_exception(%InvalidIntoOptionError{}, _redactor) do
+    ArgumentError.exception(message: "provided `:into` opts did not result in a valid wrapper")
+  end
+
+  def redact_exception(e, redactor) when is_exception(e) and is_function(redactor, 1) do
     try do
-      redact_exception_with(e, redactor_fun)
+      redactor.(e)
     rescue
       _ ->
         log_custom_redaction_failed_error()
-        redact_exception_with(e, exception_redactor_from_strategy(:strip))
+        SensitiveData.Redactors.Exception.drop(e)
     end
   end
 
-  @spec redact_exception_with(Exception.t(), exception_redactor_fun()) :: Exception.t()
-  defp redact_exception_with(e, redactor_fun) do
-    e
-    |> redactor(redactor_fun)
-    |> redact_args(redactor_fun)
-  end
+  # @spec redact_exception_with(Exception.t(), exception_redactor_fun()) :: Exception.t()
+  # defp redact_exception_with(e, redactor_fun) do
+  #   e
+  #   |> redactor(redactor_fun)
+  #   |> redact_args(redactor_fun)
+  # end
 
-  @spec redactor(Exception.t(), exception_redactor_fun()) :: Exception.t()
+  # @spec redactor(Exception.t(), exception_redactor_fun()) :: Exception.t()
 
-  defp redactor(%{term: term} = e, redactor_fun) when is_function(redactor_fun, 2),
-    do: %{e | term: redactor_fun.(term, :term)}
+  # defp redactor(%{term: term} = e, redactor_fun) when is_function(redactor_fun, 2),
+  #   do: %{e | term: redactor_fun.(term, :term)}
 
-  defp redactor(e, _redactor_fun), do: e
+  # defp redactor(e, _redactor_fun), do: e
 
-  @spec redact_args(Exception.t(), exception_redactor_fun()) :: Exception.t()
+  # @spec redact_args(Exception.t(), exception_redactor_fun()) :: Exception.t()
 
-  defp redact_args(%{args: args} = e, redactor_fun) when is_function(redactor_fun, 2),
-    do: %{e | args: redactor_fun.(args, :args)}
+  # defp redact_args(%{args: args} = e, redactor_fun) when is_function(redactor_fun, 2),
+  #   do: %{e | args: redactor_fun.(args, :args)}
 
-  defp redact_args(e, _redactor_fun), do: e
+  # defp redact_args(e, _redactor_fun), do: e
 
-  @spec exception_redactor_from_strategy(redaction_strategy_name()) :: exception_redactor_fun()
-  defp exception_redactor_from_strategy(:strip), do: &strip/2
+  # @spec exception_redactor_from_strategy(redaction_strategy_name()) :: exception_redactor_fun()
+  # defp exception_redactor_from_strategy(:strip), do: &strip/2
 
-  defp strip(_term, :term), do: Redacted
-  defp strip(args, :args), do: List.duplicate(Redacted, length(args))
+  # defp strip(_term, :term), do: Redacted
+  # defp strip(args, :args), do: List.duplicate(Redacted, length(args))
 
   @doc """
   Redacts the stack trace to remove sensitive arguments.
@@ -160,39 +166,16 @@ defmodule SensitiveData.Redaction do
   """
   @spec redact_stacktrace(Exception.stacktrace(), stacktrace_redaction_strategy()) ::
           Exception.stacktrace()
-  def redact_stacktrace(stacktrace, redaction_strategy \\ :strip) when is_list(stacktrace) do
-    redactor =
-      case redaction_strategy do
-        fun when is_function(fun, 1) -> fun
-        :strip -> stacktrace_redactor_from_strategy(:strip)
-      end
-
+  def redact_stacktrace(stacktrace, redactor) when is_list(stacktrace) do
     try do
-      redact_stacktrace_with(stacktrace, redactor)
+      redactor.(stacktrace)
     rescue
       _ ->
         log_custom_redaction_failed_error()
-        redact_stacktrace_with(stacktrace, stacktrace_redactor_from_strategy(:strip))
-    end
-  end
-
-  @spec redact_stacktrace_with(Exception.stacktrace(), stacktrace_redactor_fun()) ::
-          Exception.stacktrace()
-  defp redact_stacktrace_with([{mod, fun, [_ | _] = args, info} | rest], redactor),
-    do: [{mod, fun, redactor.(args), info} | rest]
-
-  defp redact_stacktrace_with(stacktrace, _redactor), do: stacktrace
-
-  @spec stacktrace_redactor_from_strategy(redaction_strategy_name()) :: stacktrace_redactor_fun()
-  defp stacktrace_redactor_from_strategy(:strip) do
-    fn args ->
-      case args do
-        list when is_list(list) -> length(list)
-        _ -> args
-      end
+        SensitiveData.Redactors.Stacktrace.strip(stacktrace)
     end
   end
 
   defp log_custom_redaction_failed_error(),
-    do: Logger.error("Custom redaction strategy failed, falling back to `:strip` strategy")
+    do: Logger.error("Custom redaction strategy failed, using default redactor")
 end

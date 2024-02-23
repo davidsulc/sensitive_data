@@ -16,7 +16,7 @@ defmodule SensitiveDataTest do
     try do
       fun.()
     rescue
-      e -> {inspect(e), inspect(__STACKTRACE__)}
+      e -> {e, inspect(__STACKTRACE__)}
     end
   end
 
@@ -25,17 +25,19 @@ defmodule SensitiveDataTest do
     test_action = fn -> Map.get(secret, :bad_key) end
 
     # secrets leak normally
-    {error_message, stacktrace} = capture_exception_io(test_action)
+    {exception, stacktrace} = capture_exception_io(test_action)
 
-    assert String.contains?(error_message, secret)
+    assert String.contains?(inspect(exception), secret)
+    assert String.contains?(Exception.message(exception), secret)
 
     assert String.contains?(stacktrace, secret)
 
     # secrets don't leak from within `exec`
-    {error_message, stacktrace} =
+    {exception, stacktrace} =
       capture_exception_io(fn -> exec(test_action) end)
 
-    refute String.contains?(error_message, secret)
+    refute String.contains?(inspect(exception), secret)
+    refute String.contains?(Exception.message(exception), secret)
 
     refute String.contains?(stacktrace, secret)
 
@@ -43,18 +45,27 @@ defmodule SensitiveDataTest do
     custom_redaction_exception = "CUSTOM_REDACTION_EXCEPTION"
     custom_redaction_stacktrace = "CUSTOM_REDACTION_STACKTRACE"
 
-    {error_message, stacktrace} =
+    {exception, stacktrace} =
       capture_exception_io(fn ->
         exec(test_action,
-          exception_redaction: fn _val, _term -> custom_redaction_exception end,
-          stacktrace_redaction: fn _args -> custom_redaction_stacktrace end
+          exception_redactor: fn
+            %{term: _} = e -> %{e | term: custom_redaction_exception}
+            e -> e
+          end,
+          stacktrace_redactor: fn stacktrace ->
+            with [{mod, fun, args, info} | rest] when is_list(args) <- stacktrace do
+              [{mod, fun, [custom_redaction_stacktrace], info} | rest]
+            end
+          end
         )
       end)
 
-    assert String.contains?(error_message, custom_redaction_exception)
+    assert String.contains?(inspect(exception), custom_redaction_exception)
+    assert String.contains?(Exception.message(exception), custom_redaction_exception)
     assert String.contains?(stacktrace, custom_redaction_stacktrace)
 
-    refute String.contains?(error_message, secret)
+    refute String.contains?(inspect(exception), secret)
+    refute String.contains?(Exception.message(exception), secret)
     refute String.contains?(stacktrace, secret)
   end
 
@@ -103,28 +114,28 @@ defmodule SensitiveDataTest do
     me = self()
     ref = make_ref()
 
-    exception_redactor = fn term, value_type ->
-      send(me, {ref, term, value_type})
-      term
+    exception_redactor = fn e ->
+      send(me, {ref, e})
+      e
     end
 
     try do
-      exec(fn -> Map.get(secret, :some_key) end, exception_redaction: exception_redactor)
+      exec(fn -> Map.get(secret, :some_key) end, exception_redactor: exception_redactor)
     rescue
       _ -> :ok
     end
 
-    assert_received({^ref, ^secret, :term})
+    assert_received({^ref, %BadMapError{term: ^secret}})
 
     try do
       exec(fn -> Enum.map([secret], fn _, _ -> :bad end) end,
-        exception_redaction: exception_redactor
+        exception_redactor: exception_redactor
       )
     rescue
       _ -> :ok
     end
 
-    assert_received({^ref, [^secret], :args})
+    assert_received({^ref, %BadArityError{args: [^secret]}})
   end
 
   test "exec with stacktrace_redaction" do
@@ -132,18 +143,18 @@ defmodule SensitiveDataTest do
     me = self()
     ref = make_ref()
 
-    stacktrace_redactor = fn args ->
-      send(me, {ref, args})
-      args
+    stacktrace_redactor = fn stacktrace ->
+      send(me, {ref, stacktrace})
+      stacktrace
     end
 
     try do
-      exec(fn -> Map.get(secret, :some_key) end, stacktrace_redaction: stacktrace_redactor)
+      exec(fn -> Map.get(secret, :some_key) end, stacktrace_redactor: stacktrace_redactor)
     rescue
       _ -> :ok
     end
 
-    assert_received({^ref, [^secret, :some_key, nil]})
+    assert_received({^ref, [{Map, :get, [^secret, :some_key, nil], _} | _]})
   end
 
   test "gets_sensitive/2" do
@@ -208,8 +219,10 @@ defmodule SensitiveDataTest do
   end
 
   defp assert_invalid_into_opts_raise(callback) do
+    message = SensitiveData.InvalidIntoOptionError.exception([]) |> Exception.message()
+
     for into_opts <- [List, {List, [:foo, :bar]}, "foo"] do
-      assert_raise(ArgumentError, "provided `:into` opts did not result in a valid wrapper", fn ->
+      assert_raise(ArgumentError, message, fn ->
         callback.(into_opts)
       end)
     end

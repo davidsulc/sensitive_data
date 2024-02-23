@@ -2,9 +2,9 @@ defmodule SensitiveData.GuardsTest do
   use ExUnit.Case, async: true
   import ExUnitProperties
 
-  import Exceptions
   import StreamData
   import SensitiveData.Guards
+  import Support.Exceptions
 
   alias Wrappers.SensiData
 

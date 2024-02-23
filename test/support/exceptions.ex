@@ -1,4 +1,4 @@
-defmodule Exceptions do
+defmodule Support.Exceptions do
   import StreamData
 
   @exception_names_with_message [
