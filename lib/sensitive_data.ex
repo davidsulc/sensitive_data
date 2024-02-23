@@ -21,9 +21,9 @@ defmodule SensitiveData do
   alias SensitiveData.Wrapper
 
   @type exec_opts :: [
+          into: Wrapper.spec(),
           exception_redaction: Redaction.exception_redaction_strategy(),
-          stacktrace_redaction: Redaction.stacktrace_redaction_strategy(),
-          into: Wrapper.spec()
+          stacktrace_redaction: Redaction.stacktrace_redaction_strategy()
         ]
 
   @doc ~s"""
@@ -31,12 +31,12 @@ defmodule SensitiveData do
 
   ## Options
 
-  - `:exception_redaction` - will be passed on to
-    `SensitiveData.Redaction.redact_exception/2`
-  - `:stacktrace_redaction` - will be passed on to
-    `SensitiveData.Redaction.redact_stacktrace/2`
   - `:into` - a `t:SensitiveData.Wrapper.spec/0` value into which the `fun` execution
     result should be wrapped.
+  - `:exception_redaction` - the `t:SensitiveData.Redaction.exception_redaction_strategy/0`
+    to use when redacting an `t:Exception.t/0`. Defaults to `:strip`.
+  - `:stacktrace_redaction` - the `t:SensitiveData.Redaction.stacktrace_redaction_strategy/0`
+    to use when redacting a stack trace. Defaults to `:strip`.
 
   ## Examples
 
@@ -69,6 +69,7 @@ defmodule SensitiveData do
       SensitiveData.exec(fn ->
         System.fetch_env!("DATABASE_PASSWORD")
       end, into: SecretData)
+      #SecretData<...>
   """
   @spec exec((-> result), exec_opts()) :: result when result: term() | no_return()
   def exec(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do

@@ -5,8 +5,9 @@ defmodule SensitiveData.Redaction do
   > ### Tip {: .tip}
   >
   >In typical use, there's no need to call these functions directly:
-  >`SensitiveData.exec/1` should be used instead as it will handle
-  >redaction duties and call the necessary functions from this module.
+  >`SensitiveData.exec/1` as well as the callbacks defined in `SensitiveData.Wrapper`
+  >should be used instead as they will handle redaction duties upon failiure and call the
+  >necessary functions from this module.
   """
 
   require Logger
@@ -15,13 +16,16 @@ defmodule SensitiveData.Redaction do
 
   @type exception_redaction_strategy :: exception_redactor_fun() | redaction_strategy_name()
   @type stacktrace_redaction_strategy :: stacktrace_redactor_fun() | redaction_strategy_name()
+
   @typedoc """
-  The name of the redaction strategy to use when redaction `term` and `args`
-  values from `Exception`s.
+  Strategies:
+
+  - `:strip` - terms and arguments are removed and replaced by the `SensitiveData.Redacted` atom
 
   Currently, only `:strip` is supported.
   """
   @type redaction_strategy_name :: :strip
+
   @typedoc """
   A function responsible for redacting term and args.
 
@@ -30,8 +34,10 @@ defmodule SensitiveData.Redaction do
   The function must return a redacted version of the provided value.
   """
   @type exception_redactor_fun :: (term(), value_type() -> term())
+
   @typedoc "The type of information being redacted from the `Exception`"
   @type value_type :: :term | :args
+
   @typedoc """
   A function responsible for redacting args from a stacktrace.
 
@@ -115,9 +121,7 @@ defmodule SensitiveData.Redaction do
   defp strip(args, :args), do: List.duplicate(Redacted, length(args))
 
   @doc """
-  Redacts the stacktrace to remove sensitive arguments.
-
-  By default, all arguments will be completely stripped.
+  Redacts the stack trace to remove sensitive arguments.
 
   > #### Beware {: .warning}
   >
