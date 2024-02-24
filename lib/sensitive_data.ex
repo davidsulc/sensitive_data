@@ -23,8 +23,8 @@ defmodule SensitiveData do
 
   @type exec_opts :: [
           into: Wrapper.spec(),
-          exception_redaction: Redaction.exception_redaction_strategy(),
-          stacktrace_redaction: Redaction.stacktrace_redaction_strategy()
+          exception_redactor: Redaction.exception_redactor(),
+          stacktrace_redactor: Redaction.stacktrace_redactor()
         ]
 
   @doc ~s"""
@@ -34,9 +34,9 @@ defmodule SensitiveData do
 
   - `:into` - a `t:SensitiveData.Wrapper.spec/0` value into which the `fun` execution
     result should be wrapped.
-  - `:exception_redactor` - the `t:SensitiveData.Redaction.exception_redaction_strategy/0`
+  - `:exception_redactor` - the `t:SensitiveData.Redaction.exception_redactor/0`
     to use when redacting an `t:Exception.t/0`. Defaults to `:strip`.
-  - `:stacktrace_redactor` - the `t:SensitiveData.Redaction.stacktrace_redaction_strategy/0`
+  - `:stacktrace_redactor` - the `t:SensitiveData.Redaction.stacktrace_redactor/0`
     to use when redacting a stack trace. Defaults to `:strip`.
 
   ## Examples
