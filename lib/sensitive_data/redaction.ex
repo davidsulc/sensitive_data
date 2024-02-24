@@ -1,29 +1,28 @@
 defmodule SensitiveData.Redaction do
-  @moduledoc false
-  # Functions for redacting information from exceptions and stack traces.
+  @moduledoc "Utilities for redacting information from exceptions and stack traces."
 
   require Logger
 
   alias SensitiveData.InvalidIntoOptionError
+
+  @type redactor(type) :: (original :: type -> redacted :: type)
 
   @typedoc """
   A function responsible for redacting exceptions.
 
   The function must return a redacted version of the provided exception.
   """
-  @type exception_redactor :: (unredacted_exception :: struct() -> redacted_exception :: struct())
+  @type exception_redactor :: redactor(exception :: struct())
 
   @typedoc """
   A function responsible for redacting a stacktrace.
 
   The function must return a redacted version of the provided stack trace.
   """
-  @type stacktrace_redactor :: (Exception.stacktrace() -> Exception.stacktrace())
+  @type stacktrace_redactor :: redactor(Exception.stacktrace())
 
-  @doc """
-  Redacts the exception according to the provided redactor.
-  """
-
+  @doc false
+  # Redacts the exception according to the provided redactor.
   # we don't want to redact "internal errors" as
   # - we know they don't leak sensitive data
   # - we want users to know what went wrong in their use of this library so they can fix it
@@ -43,9 +42,8 @@ defmodule SensitiveData.Redaction do
     end
   end
 
-  @doc """
-  Redacts the stack trace with the provided redactor.
-  """
+  @doc false
+  # Redacts the stack trace with the provided redactor.
   @spec redact_stacktrace(Exception.stacktrace(), stacktrace_redactor()) ::
           Exception.stacktrace()
   def redact_stacktrace(stacktrace, redactor) when is_list(stacktrace) do
