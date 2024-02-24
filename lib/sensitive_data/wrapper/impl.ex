@@ -34,24 +34,18 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec from(function(), Keyword.t()) :: Wrapper.t()
   def from(provider, opts) when is_function(provider, 0) and is_list(opts) do
+    {exec_opts, wrapper_opts} = Keyword.pop(opts, :exec_opts, [])
+
+    term =
+      SensitiveData.exec(
+        fn ->
+          provider.()
+        end,
+        exec_opts
+      )
+
     SensitiveData.exec(fn ->
-      term = provider.()
-
-      {wrapper_mod, wrapper_opts} =
-        case Keyword.fetch!(opts, :into) do
-          {mod, opts} when is_atom(mod) and is_list(opts) -> {mod, opts}
-          mod when is_atom(mod) -> {mod, []}
-          _ -> raise InvalidIntoOptionError
-        end
-
-      unless wrapper_like_module?(wrapper_mod), do: raise(InvalidIntoOptionError)
-
-      filtered_opts =
-        try do
-          filter_wrap_opts(wrapper_opts, wrapper_mod)
-        rescue
-          _ -> raise InvalidIntoOptionError
-        end
+      {wrapper_mod, filtered_opts} = into_opts!(wrapper_opts)
 
       wrapper =
         wrapper_mod
@@ -62,6 +56,26 @@ defmodule SensitiveData.Wrapper.Impl do
 
       wrapper
     end)
+  end
+
+  defp into_opts!(opts) do
+    {wrapper_mod, wrapper_opts} =
+      case Keyword.fetch!(opts, :into) do
+        {mod, opts} when is_atom(mod) and is_list(opts) -> {mod, opts}
+        mod when is_atom(mod) -> {mod, []}
+        _ -> raise InvalidIntoOptionError
+      end
+
+    unless wrapper_like_module?(wrapper_mod), do: raise(InvalidIntoOptionError)
+
+    filtered_opts =
+      try do
+        filter_wrap_opts(wrapper_opts, wrapper_mod)
+      rescue
+        _ -> raise InvalidIntoOptionError
+      end
+
+    {wrapper_mod, filtered_opts}
   end
 
   # this doesn't guarantee that `true` comes from a proper wrapper module

@@ -263,14 +263,15 @@ defmodule SensitiveData.Wrapper do
       """
       @impl SensitiveData.Wrapper
       @spec from(function, list) :: t()
-      def from(provider, opts \\ []) when is_function(provider) and is_list(opts),
-        do:
-          SensitiveData.Wrapper.Impl.from(provider,
-            into: {__MODULE__, filter_wrap_opts(opts)}
-            # TODO: redaction options need to be taken into account here
-            # => these are the options for the exec within from and NOT
-            # the redaction options for the into module (those are taken from use args)
-          )
+      def from(provider, opts \\ []) when is_function(provider) and is_list(opts) do
+        {exec_opts, wrapper_opts} =
+          Keyword.split(opts, [:exception_redactor, :stacktrace_redactor])
+
+        SensitiveData.Wrapper.Impl.from(provider,
+          into: {__MODULE__, filter_wrap_opts(wrapper_opts)},
+          exec_opts: exec_opts
+        )
+      end
 
       if gen_wrap do
         @doc """

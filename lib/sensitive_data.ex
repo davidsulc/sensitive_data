@@ -100,11 +100,8 @@ defmodule SensitiveData do
   @spec gets_sensitive(prompt, into: Wrapper.spec()) :: user_input
         when prompt: String.t(), user_input: String.t()
   def gets_sensitive(prompt, opts \\ []) do
-    # exec(fn ->
     SensitiveData.IO.gets_sensitive(prompt)
     |> maybe_wrap(opts)
-
-    # end)
   end
 
   defp maybe_wrap(raw_data, opts) do

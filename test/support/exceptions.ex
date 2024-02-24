@@ -23,7 +23,6 @@ defmodule Support.Exceptions do
   ]
 
   @exception_names_other [
-    BadArityError,
     Code.LoadError,
     KeyError
   ]
@@ -64,13 +63,10 @@ defmodule Support.Exceptions do
   end
 
   def exception_with_multiple_args() do
-    one_of([exception_bad_arity_error(), exception_key_error(), exception_code_load_error()])
-  end
-
-  def exception_bad_arity_error() do
-    bind({atom(:alphanumeric), list_of(term())}, fn {function, args} ->
-      constant(BadArityError.exception(function: function, args: args))
-    end)
+    one_of([
+      exception_key_error(),
+      exception_code_load_error()
+    ])
   end
 
   def exception_key_error() do
