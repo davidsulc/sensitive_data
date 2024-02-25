@@ -136,6 +136,27 @@ defmodule SensitiveDataTest do
     end
 
     assert_received({^ref, %BadArityError{args: [^secret]}})
+
+    log =
+      capture_log(fn ->
+        exception =
+          try do
+            exec(fn -> Map.get(:foo, :bar) end,
+              # the exception redaction failed, so we expect a fallback to
+              # SensitiveData.Redactors.Exception.drop/1
+              exception_redactor: fn _ -> raise "exception redactor failed" end
+            )
+          rescue
+            e -> e
+          end
+
+        assert %SensitiveData.RedactedException{exception_name: BadMapError} = exception
+      end)
+
+    assert String.contains?(
+             log,
+             "Custom exception redaction strategy failed, using default redactor"
+           )
   end
 
   test "exec with stacktrace_redaction" do
@@ -155,6 +176,22 @@ defmodule SensitiveDataTest do
     end
 
     assert_received({^ref, [{Map, :get, [^secret, :some_key, nil], _} | _]})
+
+    log =
+      capture_log(fn ->
+        try do
+          exec(fn -> Map.get(:foo, :bar) end,
+            stacktrace_redactor: fn _ -> raise "stack trace redactor failed" end
+          )
+        rescue
+          _ -> :ok
+        end
+      end)
+
+    assert String.contains?(
+             log,
+             "Custom stack trace redaction strategy failed, using default redactor"
+           )
   end
 
   test "gets_sensitive/2" do

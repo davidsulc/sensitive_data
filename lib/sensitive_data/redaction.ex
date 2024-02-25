@@ -11,6 +11,17 @@ defmodule SensitiveData.Redaction do
   A function responsible for redacting exceptions.
 
   The function must return a redacted version of the provided exception.
+
+  If this function fails, redaction will fall back to
+  `SensitiveData.Redactors.Exception.drop/1`.
+
+  > #### Beware {: .warning}
+  >
+  > If you use a custom exception redaction strategy, you must ensure it won't leak sensitive
+  > information for any possible exception provided as the argument.
+  >
+  > Bear in mind you must handle not only standard Elixir exceptions and those from your code
+  > base, but also any exception that may be raised by any dependency.
   """
   @type exception_redactor :: redactor(Exception.t())
 
@@ -18,6 +29,14 @@ defmodule SensitiveData.Redaction do
   A function responsible for redacting a stacktrace.
 
   The function must return a redacted version of the provided stack trace.
+
+  If this function fails, redaction will fall back to
+  `SensitiveData.Redactors.Stacktrace.strip/1`.
+
+  > #### Beware {: .warning}
+  >
+  > If you use a custom stack trace redaction strategy, you must ensure it won't leak sensitive
+  > data under any circumstances.
   """
   @type stacktrace_redactor :: redactor(Exception.stacktrace())
 
@@ -37,7 +56,7 @@ defmodule SensitiveData.Redaction do
       redactor.(e)
     rescue
       _ ->
-        log_custom_redaction_failed_error()
+        log_custom_redaction_failed_error("exception")
         SensitiveData.Redactors.Exception.drop(e)
     end
   end
@@ -51,11 +70,11 @@ defmodule SensitiveData.Redaction do
       redactor.(stacktrace)
     rescue
       _ ->
-        log_custom_redaction_failed_error()
+        log_custom_redaction_failed_error("stack trace")
         SensitiveData.Redactors.Stacktrace.strip(stacktrace)
     end
   end
 
-  defp log_custom_redaction_failed_error(),
-    do: Logger.error("Custom redaction strategy failed, using default redactor")
+  defp log_custom_redaction_failed_error(type) when is_binary(type),
+    do: Logger.error("Custom #{type} redaction strategy failed, using default redactor")
 end
