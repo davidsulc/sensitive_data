@@ -83,23 +83,24 @@ It is often useful to be able to determine some information about the sensitive
 data contained within wrappers, both for programmatic and human debuggability
 reasons.
 
-### Guards and Util
+### Guards and Utilities
 
-Functions from the `SensitiveData.Guards` and `SensitiveData.Wrapper.Util`
-modules can help with branching logic depending (somewhat) on the sensitive
-data within the wrappers:
+Functions from the `SensitiveData.Guards` module and utility functions from
+the `SensitiveData.Wrapper` module can help with branching logic depending
+(somewhat) on the sensitive data within the wrappers:
 
 ```
-import SensitiveData.Guards
+require SensitiveData.Guards
 
-alias SensitiveData.Wrapper.Util
+alias SensitiveData.Guards
+alias SensitiveData.Wrapper
 
 data = MySecretData.from(fn ->
   %{foo: :yes, bar: :no} end)
 
 case data do
-  map when is_sensitive_map(map) ->
-    IO.puts("It's a map with #{Util.sensitive_map_size(map)} items")
+  map when Guards.is_sensitive_map(map) ->
+    IO.puts("It's a map with #{Wrapper.sensitive_map_size(map)} items")
 
   _ ->
     IO.puts("It's not a map")
