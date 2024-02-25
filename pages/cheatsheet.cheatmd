@@ -116,10 +116,8 @@ level with the `redactor` option given to `use SensitiveData.Wrapper`, which can
 
 In either case, the redaction function will be called with a single argument: the sensitive term.
 
-> #### Beware {: .warning}
->
-> If you use a custom redaction strategy, you must ensure it won't leak any
-> sensitive data under any circumstances.
+⚠️️ **BEWARE** ⚠️ If you use a custom redaction strategy, you must ensure it won't leak any
+sensitive data under any circumstances.
 
 
 ```
@@ -166,10 +164,8 @@ must be explicitly enabled via the `allow_label: true` option given to `use Sens
 
 Once enabled at the module level, each instance of sensitive data can be labeled via the `:label` option.
 
-> #### Beware {: .warning}
->
-> If you allow labels, you must ensure call sites aren't leaking
-> sensitive data via label values.
+⚠️ **BEWARE** ⚠️ If you allow labels, you must ensure call sites aren't leaking
+sensitive data via label values.
 
 
 ```
