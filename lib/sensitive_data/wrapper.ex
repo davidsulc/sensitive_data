@@ -18,17 +18,22 @@ defmodule SensitiveData.Wrapper do
     Defaults to `false`.
     This option should be used with care, see
     [redacting and labeling section](#module-redacting-and-labeling))
-  - `:redactor` - a function with which the wrapped sensitive term can
-    be appropriately redacted for display.
+  - `:redactor` - a `t:function_handle/0` pointing to a
+    `t:SensitiveData.Redaction.redactor/1` function (for any `t:term/0`) able to
+    appropriately redact the wrapped sensitive term for display.
     If the redactor function fails (e.g., by raising), the redacted
     value will be set to `SensitiveData.Redacted`.
-    By default, there is no redaction.
+    By default, no redacted value is made available.
     This option should be used with care, see
     [redacting and labeling section](#module-redacting-and-labeling))
-    The option can be provided as:
-    - an atom - the name of the redactor function located in the same module
-    - a `{Module, func}` tuple - the redactor function `func` from module
-      Module will be used for redaction.
+  - `:exception_redactor` - a `t:function_handle/0` pointing to a
+    `t:SensitiveData.Redaction.exception_redactor/0`.
+    By default, exception redaction is provided by `SensitiveData.Redactors.Exception.drop/1`.
+    This option should be used with care, see [Custom Failure Redaction](#module-custom-failure-redaction)
+  - `:stacktrace_redactor` - a `t:function_handle/0` pointing to a
+    `t:SensitiveData.Redaction.stacktrace_redactor/0`.
+    By default, stack trace redaction is provided by `SensitiveData.Redactors.Stacktrace.strip/1`.
+    This option should be used with care, see [Custom Failure Redaction](#module-custom-failure-redaction)
   - `:wrap` - a boolean indicating whether the `c:wrap/2` callback implementation
     should be generated. Defaults to `false`.
   - `:unwrap` - a boolean indicating whether the `c:unwrap/1` callback implementation
@@ -82,6 +87,34 @@ defmodule SensitiveData.Wrapper do
 
   For both redacting and labeling, `nil` values will not be displayed when
   inspecting.
+
+  [//]: # (This is used in an HTML anchor: if updated, update links with)
+  [//]: # (#module-custom-failure-redaction)
+
+  ## Custom Failure Redaction
+
+  If an exception is raised within a sensitive context (such within `exec/3`, `from/2`,
+  or `map/3`), both the exception and stack trace will be redacted. By default:
+
+  - the exception will be redacted with `SensitiveData.Redactors.Exception.drop/1`
+  - the stack trace will be redacted with `SensitiveData.Redactors.Stacktrace.strip/1`
+
+  However, failure redaction can be customized via the `:exception_redactor` and
+  `:stacktrace_redactor` given to the `use` call.
+
+  > #### Beware {: .warning}
+  >
+  > Custom failure redaction should be used with utmost care to ensure it won't leak any
+  > sensitive data under any circumstances.
+  >
+  > For exception redaction, you must ensure it won't leak sensitive
+  > information for any possible exception: standard Elixir ones, the ones in your code base,
+  > but also any exception that may be raised from a dependency.
+  >
+  > For stack trace redaction, it must handle all possible stack traces.
+
+  If a custom redactor function fails, redaction will fall back to the corresponding default
+  redactor listed above.
   """
 
   import SensitiveData.Guards,
@@ -106,6 +139,17 @@ defmodule SensitiveData.Wrapper do
           :redacted => term(),
           optional(atom()) => term()
         }
+
+  @typedoc """
+  The location of a function.
+
+  If provided as an `atom`, the function is that with the same name and located in the
+  current module.
+
+  If provided as a `{module, atom}` tuple, the function is that with the same name as `atom`
+  and located in the `module` module.
+  """
+  @type function_handle :: local_function :: atom() | {module(), remote_function :: atom()}
 
   @type spec :: wrapper_module() | {wrapper_module(), wrap_opts()}
 
