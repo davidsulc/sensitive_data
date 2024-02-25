@@ -37,7 +37,10 @@ defmodule SensitiveData.RedactionTest do
         assert is_exception(redacted_exception, SensitiveData.RedactedException)
       end)
 
-    assert String.contains?(log, "Custom redaction strategy failed, using default redactor")
+    assert String.contains?(
+             log,
+             "Custom exception redaction strategy failed, using default redactor"
+           )
   end
 
   test "redact_exception/2 converts all internal errors into ArgumentError" do
@@ -84,6 +87,9 @@ defmodule SensitiveData.RedactionTest do
         end
       end)
 
-    assert String.contains?(log, "Custom redaction strategy failed, using default redactor")
+    assert String.contains?(
+             log,
+             "Custom stack trace redaction strategy failed, using default redactor"
+           )
   end
 end

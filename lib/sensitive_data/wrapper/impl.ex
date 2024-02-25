@@ -34,28 +34,23 @@ defmodule SensitiveData.Wrapper.Impl do
 
   @spec from(function(), Keyword.t()) :: Wrapper.t()
   def from(provider, opts) when is_function(provider, 0) and is_list(opts) do
-    {exec_opts, wrapper_opts} = Keyword.pop(opts, :exec_opts, [])
+    {wrapper_mod, filtered_opts} = SensitiveData.exec(fn -> into_opts!(opts) end)
 
-    term =
-      SensitiveData.exec(
-        fn ->
-          provider.()
-        end,
-        exec_opts
-      )
+    exec_with_custom_failure_redaction(
+      fn ->
+        term = provider.()
 
-    SensitiveData.exec(fn ->
-      {wrapper_mod, filtered_opts} = into_opts!(wrapper_opts)
+        wrapper =
+          wrapper_mod
+          |> struct!(into_struct_shape(filtered_opts))
+          |> map(fn _ -> term end, filtered_opts)
 
-      wrapper =
-        wrapper_mod
-        |> struct!(into_struct_shape(filtered_opts))
-        |> map(fn _ -> term end, filtered_opts)
+        unless is_sensitive(wrapper), do: raise(InvalidIntoOptionError)
 
-      unless is_sensitive(wrapper), do: raise(InvalidIntoOptionError)
-
-      wrapper
-    end)
+        wrapper
+      end,
+      wrapper_mod
+    )
   end
 
   defp into_opts!(opts) do
@@ -122,14 +117,15 @@ defmodule SensitiveData.Wrapper.Impl do
 
     new_label = Keyword.get(filtered_opts, :label, wrapper.label)
 
-    updated_data = SensitiveData.exec(fn -> wrapper |> unwrap() |> fun.() end)
+    updated_data =
+      exec_with_custom_failure_redaction(fn -> wrapper |> unwrap() |> fun.() end, wrapper_mod)
 
     redacted =
       try do
-        case apply(wrapper_mod, :__sensitive_data_redactor__, []) do
-          nil -> nil
-          {mod_name, fn_name} -> apply(mod_name, fn_name, [updated_data])
-          fn_name -> apply(wrapper_mod, fn_name, [updated_data])
+        with handle when not is_nil(handle) <-
+               apply(wrapper_mod, :__sensitive_data_redactor__, []) do
+          redactor = reify_redaction_function(wrapper_mod, :__sensitive_data_redactor__)
+          redactor.(updated_data)
         end
       rescue
         _ -> Redacted
@@ -148,7 +144,7 @@ defmodule SensitiveData.Wrapper.Impl do
   end
 
   @spec exec(struct(), (term() -> result)) :: result when result: term()
-  def exec(%{} = wrapper, fun, opts \\ []) when is_sensitive(wrapper) do
+  def exec(%wrapper_mod{} = wrapper, fun, opts \\ []) when is_sensitive(wrapper) do
     into_config =
       SensitiveData.exec(fn ->
         case filter_opts(opts, [:into]) |> Keyword.get(:into) do
@@ -166,10 +162,11 @@ defmodule SensitiveData.Wrapper.Impl do
         end
       end)
 
-    SensitiveData.exec(
+    exec_with_custom_failure_redaction(
       fn ->
         wrapper |> unwrap() |> fun.()
       end,
+      wrapper_mod,
       into_config
     )
   end
@@ -177,4 +174,31 @@ defmodule SensitiveData.Wrapper.Impl do
   @spec unwrap(struct()) :: term()
   defp unwrap(%{} = wrapper) when is_sensitive(wrapper),
     do: wrapper.__priv__.data_provider.()
+
+  defp exec_with_custom_failure_redaction(callback, wrapper_mod, opts \\ [])
+       when is_function(callback, 0) do
+    SensitiveData.exec(
+      callback,
+      opts ++
+        [
+          exception_redactor:
+            reify_redaction_function(wrapper_mod, :__sensitive_data_exception_redactor__),
+          stacktrace_redactor:
+            reify_redaction_function(wrapper_mod, :__sensitive_data_stacktrace_redactor__)
+        ]
+    )
+  end
+
+  @spec reify_redaction_function(module(), atom()) :: function()
+  defp reify_redaction_function(wrapper_mod, handler_provider_name) do
+    {mod_name, fn_name} =
+      case apply(wrapper_mod, handler_provider_name, []) do
+        {external_mod_name, fn_name} -> {external_mod_name, fn_name}
+        fn_name -> {wrapper_mod, fn_name}
+      end
+
+    fn original_term ->
+      apply(mod_name, fn_name, [original_term])
+    end
+  end
 end

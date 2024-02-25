@@ -1,5 +1,5 @@
 defmodule SensitiveData.WrapperTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   import ExUnit.CaptureLog, only: [capture_log: 1]
   import ExUnitProperties
 
@@ -90,33 +90,6 @@ defmodule SensitiveData.WrapperTest do
     assert_raise(RedactedException, fn ->
       SensiData.from(fn -> raise "boom" end)
     end)
-  end
-
-  test "from/2 allows custom redaction" do
-    me = self()
-
-    check all(exception <- Support.Exceptions.exception()) do
-      exception_ref = make_ref()
-      stacktrace_ref = make_ref()
-
-      %exception_name{} = exception
-
-      assert_raise(exception_name, fn ->
-        SensiData.from(fn -> raise exception end,
-          exception_redactor: fn e ->
-            send(me, {exception_ref, e})
-            e
-          end,
-          stacktrace_redactor: fn stacktrace ->
-            send(me, stacktrace_ref)
-            stacktrace
-          end
-        )
-      end)
-
-      assert_receive {^exception_ref, ^exception}
-      assert_receive ^stacktrace_ref
-    end
   end
 
   test "wrap/2" do

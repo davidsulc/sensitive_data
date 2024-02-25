@@ -301,12 +301,16 @@ defmodule SensitiveData.Wrapper do
   defmacro __using__(opts) do
     allow_label = Keyword.get(opts, :allow_label, false)
     redactor = Keyword.get(opts, :redactor)
+    exception_redactor = Keyword.get(opts, :exception_redactor)
+    stacktrace_redactor = Keyword.get(opts, :stacktrace_redactor)
     gen_wrap = Keyword.get(opts, :wrap, false)
     gen_unwrap = Keyword.get(opts, :unwrap, false)
 
     quote bind_quoted: [
             allow_label: allow_label,
             redactor: redactor,
+            exception_redactor: exception_redactor,
+            stacktrace_redactor: stacktrace_redactor,
             gen_unwrap: gen_unwrap,
             gen_wrap: gen_wrap
           ] do
@@ -336,13 +340,7 @@ defmodule SensitiveData.Wrapper do
       @impl SensitiveData.Wrapper
       @spec from(function, list) :: t()
       def from(provider, opts \\ []) when is_function(provider) and is_list(opts) do
-        {exec_opts, wrapper_opts} =
-          Keyword.split(opts, [:exception_redactor, :stacktrace_redactor])
-
-        SensitiveData.Wrapper.Impl.from(provider,
-          into: {__MODULE__, filter_wrap_opts(wrapper_opts)},
-          exec_opts: exec_opts
-        )
+        SensitiveData.Wrapper.Impl.from(provider, into: {__MODULE__, filter_wrap_opts(opts)})
       end
 
       if gen_wrap do
@@ -421,6 +419,21 @@ defmodule SensitiveData.Wrapper do
         def __sensitive_data_redactor__(), do: unquote(redactor)
       else
         def __sensitive_data_redactor__(), do: nil
+      end
+
+      if exception_redactor do
+        def __sensitive_data_exception_redactor__(),
+          do: unquote(exception_redactor)
+      else
+        def __sensitive_data_exception_redactor__(),
+          do: {SensitiveData.Redactors.Exception, :drop}
+      end
+
+      if stacktrace_redactor do
+        def __sensitive_data_stacktrace_redactor__(), do: unquote(stacktrace_redactor)
+      else
+        def __sensitive_data_stacktrace_redactor__(),
+          do: {SensitiveData.Redactors.Stacktrace, :strip}
       end
     end
   end

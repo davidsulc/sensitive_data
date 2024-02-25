@@ -66,7 +66,8 @@ defmodule SensitiveData do
         fun.()
       rescue
         e ->
-          exception_redactor = Keyword.get(opts, :exception_redactor, &Redactors.Exception.drop/1)
+          exception_redactor =
+            Keyword.get(opts, :exception_redactor, &Redactors.Exception.drop/1)
 
           stacktrace_redactor =
             Keyword.get(opts, :stacktrace_redactor, &Redactors.Stacktrace.strip/1)
