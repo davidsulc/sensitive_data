@@ -35,9 +35,11 @@ defmodule SensitiveData do
   - `:into` - a `t:SensitiveData.Wrapper.spec/0` value into which the `fun` execution
     result should be wrapped.
   - `:exception_redactor` - the `t:SensitiveData.Redaction.exception_redactor/0`
-    to use when redacting an `t:Exception.t/0`. Defaults to `:strip`.
+    to use when redacting an `t:Exception.t/0`. Defaults to
+    `SensitiveData.Redactors.Exception.drop/1`.
   - `:stacktrace_redactor` - the `t:SensitiveData.Redaction.stacktrace_redactor/0`
-    to use when redacting a stack trace. Defaults to `:strip`.
+    to use when redacting a stack trace. Defaults to
+    `SensitiveData.Redactors.Stacktrace.strip/1`.
 
   ## Examples
 
@@ -95,7 +97,7 @@ defmodule SensitiveData do
   the `SensitiveData.Wrapper` behaviour:
 
       SensitiveData.gets_sensitive("Enter your database password: ",
-        into: {SecretData, label: :db_password})
+        into: SecretData)
   """
   @spec gets_sensitive(prompt, into: Wrapper.spec()) :: user_input
         when prompt: String.t(), user_input: String.t()
