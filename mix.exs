@@ -25,7 +25,15 @@ defmodule SensitiveData.MixProject do
           "pages/data_leak_prevention.md"
         ]
       ],
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      test_coverage: [
+        ignore_modules: [
+          SensitiveData.Wrapper.Impl.PrivateData,
+          Support.Exceptions,
+          ~r/^SensitiveData\.DataType\../,
+          ~r/^Inspect./
+        ]
+      ]
     ]
   end
 
