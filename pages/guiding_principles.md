@@ -18,16 +18,22 @@ At its heart, `SensitiveData` boils down to 2 guiding principles:
     interact with wrapped sensitive data, so it's protected from inadvertent
     leaks from stack traces, crash dumps, and similar
 
-## Default Favor Safety
+## Defaults Favor Safety
 
 This library seeks to encourage safer generally-suitable coding practices by
 making developers opt-in to features that could leak sensitive data through
 inadvertence.
 
+## Don't Burden the Supply Chain
+
+This library has no production dependencies and thus won't add to the containing
+code base's [software supply chain](https://en.wikipedia.org/wiki/Software_supply_chain)
+beyond itself. This makes auditing easier, as there is no third-party code to review.
+
 ## Closing Thoughts
 
-Using this library in a project does by no means signify that sensitive data
-won't leak, nor does it mean developers no longer need to think critically about
+**Using this library in a project does by no means signify that sensitive data
+won't leak**, nor does it mean developers no longer need to think critically about
 data handling: there may be [additional mitigations](./data_leak_prevention.html#additional-mitigations)
 you should consider. That said, this library does aim to make the cognitive
 load associated with handling sensitive data easier to bear by both the people

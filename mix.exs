@@ -9,6 +9,14 @@ defmodule SensitiveData.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: [
+        groups_for_modules: [
+          Redaction: [
+            SensitiveData.Redacted,
+            SensitiveData.Redaction,
+            SensitiveData.Redactors.Exception,
+            SensitiveData.Redactors.Stacktrace
+          ]
+        ],
         extras: [
           "README.md",
           "pages/getting_started.md",

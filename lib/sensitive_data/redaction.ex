@@ -12,7 +12,7 @@ defmodule SensitiveData.Redaction do
 
   The function must return a redacted version of the provided exception.
   """
-  @type exception_redactor :: redactor(exception :: struct())
+  @type exception_redactor :: redactor(Exception.t())
 
   @typedoc """
   A function responsible for redacting a stacktrace.
