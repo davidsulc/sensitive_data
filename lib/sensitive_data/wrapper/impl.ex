@@ -68,14 +68,7 @@ defmodule SensitiveData.Wrapper.Impl do
 
     unless wrapper_like_module?(wrapper_mod), do: raise(InvalidIntoOptionError)
 
-    filtered_opts =
-      try do
-        filter_wrap_opts(wrapper_opts, wrapper_mod)
-      rescue
-        _ -> raise InvalidIntoOptionError
-      end
-
-    {wrapper_mod, filtered_opts}
+    {wrapper_mod, filter_wrap_opts(wrapper_opts, wrapper_mod)}
   end
 
   # this doesn't guarantee that `true` comes from a proper wrapper module
