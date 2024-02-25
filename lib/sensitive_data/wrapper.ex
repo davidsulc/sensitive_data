@@ -338,7 +338,7 @@ defmodule SensitiveData.Wrapper do
       See `c:SensitiveData.Wrapper.wrap/2`.
       """
       @impl SensitiveData.Wrapper
-      @spec from(function, list) :: t()
+      @spec from(function, SensitiveData.Wrapper.wrap_opts()) :: t()
       def from(provider, opts \\ []) when is_function(provider) and is_list(opts) do
         SensitiveData.Wrapper.Impl.from(provider, into: {__MODULE__, filter_wrap_opts(opts)})
       end
@@ -402,7 +402,7 @@ defmodule SensitiveData.Wrapper do
         do: SensitiveData.Wrapper.Impl.map(wrapper, fun, filter_wrap_opts(opts))
 
       @doc """
-      Returns the result of executing the callback with the sensitive term within `wrapper`.
+      Returns the result of executing the callback on the sensitive term, within `wrapper`.
 
       See `c:SensitiveData.Wrapper.exec/3`.
       """
