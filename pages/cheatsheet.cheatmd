@@ -28,13 +28,16 @@ MySecretData.from(fn -> System.fetch_env!("DB_URI") end)
 ### From `:stdio`
 
 ```
-SensitiveData.gets_sensitive("Your password: ", into: MySecretData)
+SensitiveData.gets_sensitive("Your password: ",
+  into: MySecretData)
 ```
 
 or alternatively
 
 ```
-MySecretData.from(fn -> SensitiveData.gets_sensitive("Your password: ") end)
+MySecretData.from(fn ->
+  SensitiveData.gets_sensitive("Your password: ")
+end)
 ```
 
 ## Interacting with Wrapped Data
@@ -205,3 +208,95 @@ aren't needed anymore.
   end)
 ```
 
+## Multiple Wrapper Modules
+
+It can be useful to use several module implementing the `SensitiveData.Wrapper`
+behaviour, for example to benefit from different redaction capabilities.
+
+Let's take as an example a credit card number which will be converted into a
+payment token which can then be used to charge the user. It would be useful
+to be able to "peek" at non-sensitive data (to display to the user in the UI,
+for debugging, and so on): this can be achieved via redaction. Naturally, as
+the credit card and associated token are different, they'll require different
+redaction implementations:
+
+```elixir
+defmodule CreditCard do
+  use SensitiveData.Wrapper, redactor: :redactor
+
+  def redactor(card_number) when is_binary(card_number) do
+    {<<first_number::binary-1, to_mask::binary>>, last_four} = String.split_at(card_number, -4)
+
+    IO.iodata_to_binary([first_number, List.duplicate("*", String.length(to_mask)), last_four])
+  end
+end
+
+defmodule PaymentToken do
+  use SensitiveData.Wrapper, redactor: :redactor
+
+  def redactor(token) when is_binary(token) do
+    # the first 10 characters aren't considered sensitive
+    {not_sensitive, rest} = String.split_at(token, 10)
+
+    IO.iodata_to_binary([not_sensitive, List.duplicate("*", String.length(rest))])
+  end
+end
+```
+
+For completeness, let's use the following for tokenization logic:
+
+```elixir
+defmodule Tokenizer do
+  def tokenize(card_number) when is_binary(card_number) do
+    "TOK_" <> random_string(20)
+  end
+
+  defp random_string(length) do
+    :crypto.strong_rand_bytes(length)
+    |> Base.url_encode64
+    |> binary_part(0, length)
+  end
+end
+```
+
+Note how the `Tokenizer` module contains only "normal" code: it has no knowledge
+of the existence of any wrapped values.
+
+We can now easily do the following:
+
+1. obtain sensitive data from the user (their credit card number)
+1. store the sensitive data in a wrapper that still allows us to know
+    enough about the wrapped value
+1. convert the sensitive data to a separate type (and different wrapper)
+    while retaining the ability to inspect non-sensitive portions
+
+```elixir
+    "Please enter your credit card number: "
+    SensitiveData.gets_sensitive(into: CreditCard)
+    |> IO.inspect()
+    |> CreditCard.exec(&Tokenizer.tokenize/1, into: PaymentToken)
+```
+
+Which will output:
+
+```elixir
+#CreditCard<redacted: "5***********5100", ...>
+#PaymentToken<redacted: "TOK_QTzY5m**************", ...>
+```
+
+And of course we can use guards in our code if we want to ensure only wrapped
+data of the proper type is used:
+
+```elixir
+import SensitiveData.Guards, only: [is_sensitive: 2]
+
+def pay(token) when is_sensitive(token, PaymentToken) do
+  # make the payment
+end
+
+def pay(credit_card) when is_sensitive(credit_card, CreditCard) do
+  credit_card
+  |> CreditCard.exec(& &1, into: PaymentToken)
+  |> pay()
+end
+```
