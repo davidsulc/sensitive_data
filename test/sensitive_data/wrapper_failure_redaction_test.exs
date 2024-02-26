@@ -2,7 +2,6 @@ defmodule SensitiveData.WrapperFailureRedactionTest do
   use ExUnit.Case, async: false
 
   alias Wrappers.FailureRedaction
-  alias Wrappers.SensiData
 
   setup do
     %{wrapper: FailureRedaction.from(fn -> :foo end)}

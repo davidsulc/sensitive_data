@@ -7,7 +7,7 @@ defmodule SensitiveData.RedactedException do
   """
   defexception [:exception_name]
 
-  @type t() :: %__MODULE__{}
+  @type t() :: %__MODULE__{exception_name: module()}
 
   def message(%__MODULE__{exception_name: name}),
     do: "an exception of type `#{inspect(name)}` was raised in a sensitive context"

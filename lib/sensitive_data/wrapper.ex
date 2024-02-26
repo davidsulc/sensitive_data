@@ -11,19 +11,26 @@ defmodule SensitiveData.Wrapper do
   `SensitiveData.Wrapper` module, making the module where the `use`
   call is made into a sensitive data wrapper.
 
+  ```
+  defmodule MySensitiveData do
+    use SensitiveData.Wrapper
+  end
+  ```
+
   The options when using are:
 
   - `:allow_label` - a boolean indicating whether the `:label` option
     is allowed on instance wrappers (see for example `c:from/2`).
     Defaults to `false`.
     This option should be used with care, see
-    [redacting and labeling section](#module-redacting-and-labeling))
+    [Redacting and Labeling](#module-redacting-and-labeling))
   - `:redactor` - a `t:function_handle/0` pointing to a
-    `t:SensitiveData.Redaction.redactor/1` function (for any `t:term/0`) able to
-    appropriately redact the wrapped sensitive term for display.
+    `t:SensitiveData.Redaction.redactor/1` function (for any wrapped
+    `t:term/0`) able to appropriately redact the wrapped sensitive
+    term for display (such as via `inspect/1`).
+    By default, no redacted value is made available.
     If the redactor function fails (e.g., by raising), the redacted
     value will be set to `SensitiveData.Redacted`.
-    By default, no redacted value is made available.
     This option should be used with care, see
     [redacting and labeling section](#module-redacting-and-labeling))
   - `:exception_redactor` - a `t:function_handle/0` pointing to a
@@ -79,11 +86,10 @@ defmodule SensitiveData.Wrapper do
       #CreditCard<redacted: "1**********2345", label: {:type, :debit}, ...>
 
   Both the redacted value and the label will be maintained as fields within
-  the wrapper (see [labeling and redacting section](#module-labeling-and-redacting))
+  the wrapper
   and can be used to assist in determining what the wrapped sensitive value
   was then the wrapper is inspected (manually when debugging, via Observer,
-  dumped in crashes, and so on). Additionally both values, can be used in
-  pattern matches.
+  dumped in crashes, and so on). Both values can be used in pattern matches.
 
   For both redacting and labeling, `nil` values will not be displayed when
   inspecting.
@@ -93,14 +99,14 @@ defmodule SensitiveData.Wrapper do
 
   ## Custom Failure Redaction
 
-  If an exception is raised within a sensitive context (such within `exec/3`, `from/2`,
-  or `map/3`), both the exception and stack trace will be redacted. By default:
+  If an exception is raised within a sensitive context (such within `c:exec/3`, `c:from/2`,
+  or `c:map/3`), both the exception and stack trace will be redacted. By default:
 
   - the exception will be redacted with `SensitiveData.Redactors.Exception.drop/1`
   - the stack trace will be redacted with `SensitiveData.Redactors.Stacktrace.strip/1`
 
   However, failure redaction can be customized via the `:exception_redactor` and
-  `:stacktrace_redactor` given to the `use` call.
+  `:stacktrace_redactor` options given to the `use` call.
 
   > #### Beware {: .warning}
   >
@@ -186,7 +192,7 @@ defmodule SensitiveData.Wrapper do
   ## Options
 
   - `:label` - a label displayed when the wrapper is inspected. This option is only
-    available if the `:allow_label` option was set to `true` when `use`ing
+    available if the `:allow_label` option was set to `true` when [using](#module-using)
     `SensitiveData.Wrapper`.
 
   ## Examples

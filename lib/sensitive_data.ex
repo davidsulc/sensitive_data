@@ -1,15 +1,13 @@
 defmodule SensitiveData do
   @moduledoc """
-  Documentation for `SensitiveData`.
-
   This library aims to make following the
   [Erlang Ecosystem Foundation](https://erlef.org/)'s recommendations regarding
   [protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html)
   more convenient, thereby making it less likely that sensitive data is mishandled.
 
   While wrapping sensitive data within a `SensitiveData.Wrapper` instance will
-  conform to many recommendations in the linked article (wrapping sensitive data in
-  a closure, pruning stack traces and exception structs, deriving the
+  conform to many recommendations in the linked article (such as wrapping sensitive data in
+  a closure, pruning stack traces, and deriving the
   `Inspect` protocol), it doesn't cover others which may be relevant to your
   situation (such as using the [:private option](https://erlang.org/doc/man/ets.html#new-2)
   for ETS tables containing sensitive data, flagging the current process as
@@ -36,10 +34,14 @@ defmodule SensitiveData do
     result should be wrapped.
   - `:exception_redactor` - the `t:SensitiveData.Redaction.exception_redactor/0`
     to use when redacting an `t:Exception.t/0`. Defaults to
-    `SensitiveData.Redactors.Exception.drop/1`.
+    `SensitiveData.Redactors.Exception.drop/1`, which is also the fallback if
+    the custom redactor fails. See
+    [Custom Failure Redaction](SensitiveData.Wrapper.html#module-custom-failure-redaction).
   - `:stacktrace_redactor` - the `t:SensitiveData.Redaction.stacktrace_redactor/0`
     to use when redacting a stack trace. Defaults to
-    `SensitiveData.Redactors.Stacktrace.strip/1`.
+    `SensitiveData.Redactors.Stacktrace.strip/1`, which is also the fallback if
+    the custom redactor fails. See
+    [Custom Failure Redaction](SensitiveData.Wrapper.html#module-custom-failure-redaction).
 
   ## Examples
 
@@ -59,7 +61,7 @@ defmodule SensitiveData do
       end, into: SecretData)
       #SecretData<...>
   """
-  @spec exec((-> result), exec_opts()) :: result when result: term() | no_return()
+  @spec exec((-> result), exec_opts()) :: result when result: term() | Wrapper.t() | no_return()
   def exec(fun, opts \\ []) when is_function(fun, 0) and is_list(opts) do
     raw_data =
       try do
@@ -100,7 +102,7 @@ defmodule SensitiveData do
       SensitiveData.gets_sensitive("Enter your database password: ",
         into: SecretData)
   """
-  @spec gets_sensitive(prompt, into: Wrapper.spec()) :: user_input
+  @spec gets_sensitive(prompt, list({:into, Wrapper.spec()})) :: user_input | Wrapper.t()
         when prompt: String.t(), user_input: String.t()
   def gets_sensitive(prompt, opts \\ []) do
     SensitiveData.IO.gets_sensitive(prompt)

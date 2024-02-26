@@ -21,8 +21,9 @@ defmodule SensitiveData.Redactors.Stacktrace do
       ...(1)>     _ -> __STACKTRACE__
       ...(1)>   end
       iex(2)> true = match?([{Map, :get, ["SOME SECRET", :some_key, nil], _} | _], stacktrace)
-      iex(3)> redacted_stacktrace = SensitiveData.Redactors.Stacktrace.strip(stacktrace)
-      iex(4)> true = match?([{Map, :get, 3, _} | _], redacted_stacktrace)
+      iex(3)> [_first_list | rest] = stacktrace
+      iex(4)> redacted_stacktrace = SensitiveData.Redactors.Stacktrace.strip(stacktrace)
+      iex(5)> true = match?([{Map, :get, 3, _} | ^rest], redacted_stacktrace)
   """
 
   def strip([{mod, fun, args, info} | rest]) when is_list(args),
