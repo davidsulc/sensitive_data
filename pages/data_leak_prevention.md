@@ -51,7 +51,9 @@ The `some_function/1` function expects a map: what happens if we
 inadvertently call it with a different data type?
 
 ```elixir
-Demo.inspect_and_reraise(fn -> Demo.some_function(secret) end)
+Demo.inspect_and_reraise(fn ->
+  Demo.some_function(secret)
+end)
 ```
 
 We're greeted with
@@ -92,26 +94,36 @@ from exception structs.
 
 `SensitiveData.exec/2` will do that for you:
 
+```elixir
+Demo.inspect_and_reraise(fn ->
+  SensitiveData.exec(fn ->
+    Demo.some_function(secret)
+  end)
+end)
+```
+
+And we'll now only see redacted information:
+
 ```sh
-exception: %BadMapError{term: SensitiveData.Redacted}
+exception: %SensitiveData.RedactedException{exception_name: BadMapError}
 stacktrace: [
   {Map, :get, 3, [file: ~c"lib/map.ex", line: 535]},
-  {:elixir_eval, :__FILE__, 1, [file: ~c"iex", line: 5]},
-  {:elixir_eval, :__FILE__, 1, [file: ~c"iex", line: 4]},
+  {:elixir_eval, :__FILE__, 1, [file: ~c"iex", line: 2]},
+  {:elixir_eval, :__FILE__, 1, [file: ~c"iex", line: 2]},
   {:elixir, :"-eval_external_handler/1-fun-2-", 4,
    [file: ~c"src/elixir.erl", line: 376]},
-  {SensitiveData, :exec, 1, [file: ~c"lib/sensitive_data.ex", line: 22]},
+  {SensitiveData, :exec, 2, [file: ~c"lib/sensitive_data.ex", line: 68]},
   {:elixir, :"-eval_external_handler/1-fun-2-", 4,
    [file: ~c"src/elixir.erl", line: 376]},
-  {Demo, :inspect_and_reraise, 1, [file: ~c"iex", line: 7]},
+  {Demo, :inspect_and_reraise, 1, [file: ~c"lib/demo.ex", line: 6]},
   {:elixir, :"-eval_external_handler/1-fun-2-", 4,
    [file: ~c"src/elixir.erl", line: 376]}
 ]
-** (BadMapError) expected a map, got: SensitiveData.Redacted
+** (SensitiveData.RedactedException) an exception of type `BadMapError` was raised in a sensitive context
     (elixir 1.15.4) lib/map.ex:535: Map.get/3
-    iex:5: (file)
-    iex:4: (file)
-    iex:3: (file)
+    iex:2: (file)
+    iex:2: (file)
+    iex:2: (file)
 ```
 
 ## State and Crashdumps
