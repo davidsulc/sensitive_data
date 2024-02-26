@@ -1,13 +1,15 @@
 # SensitiveData
 
-A library for dealing with sensitive data and leak prevention.
+A library for dealing with sensitive/private/confidential data and the
+associated leak prevention.
 
-For a quick overview, take a look at the [Getting Started](getting_started.html) and [Cheatsheet](cheatsheet.html) pages.
+For a quick overview, take a look at the [Getting Started](getting_started.html)
+and [Cheatsheet](cheatsheet.html) pages.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `sensitive_data` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `sensitive_data` to your list of
+dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -17,9 +19,8 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/sensitive_data>.
+Documentation can be found at <https://hexdocs.pm/sensitive_data>, or
+generated locally with [ExDoc](https://github.com/elixir-lang/ex_doc).
 
 ## License
 
