@@ -242,7 +242,7 @@ defmodule SensitiveData.Wrapper do
 
   ## Options
 
-  See `c:from/2`
+  See `t:wrap_opts/0`
 
   ## Examples
 
@@ -302,6 +302,10 @@ defmodule SensitiveData.Wrapper do
 
   The unwrapped result of the callback execution is then either returned as is,
   or wrapped according to provided options.
+
+  ## Options
+
+  See `t:exec_opts/0`.
 
   ## Examples
 
