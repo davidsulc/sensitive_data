@@ -82,8 +82,8 @@ defmodule SensitiveData.Wrapper do
       end
 
       # in IEx:
-      CreditCard.from(fn -> "123451234512345" end, label: {:type, :debit})
-      #CreditCard<redacted: "1**********2345", label: {:type, :debit}, ...>
+      CreditCard.from(fn -> "5105105105105100" end, label: {:type, :debit})
+      #CreditCard<redacted: "5***********5100", label: {:type, :debit}, ...>
 
   Both the redacted value and the label will be maintained as fields within
   the wrapper
@@ -157,10 +157,19 @@ defmodule SensitiveData.Wrapper do
   """
   @type function_handle :: local_function :: atom() | {module(), remote_function :: atom()}
 
+  @typedoc """
+  A wrapper target.
+
+  If provided as a `wrapper_module` module name, the `c:from/2` callback in the
+  corresponding wrapper module will be called with default options.
+
+  If provided as a `{wrapper_module, wrap_opts}` tuple, the `c:from/2` callback in the
+  corresponding wrapper module will be called with the provided `wrap_opts` options.
+  """
   @type spec :: wrapper_module() | {wrapper_module(), wrap_opts()}
 
   @typedoc """
-  A module implementing the `c:from/2` callback.
+  A module implementing the `SensitiveData.Wrapper` behaviour.
   """
   @type wrapper_module :: atom()
 
@@ -172,14 +181,20 @@ defmodule SensitiveData.Wrapper do
 
   Invalid or unsupported values will be ignored and logged.
 
-  See `c:SensitiveData.Wrapper.from/2`.
+  ## Options
+
+  - `:label` - a label displayed when the wrapper is inspected. This option is only
+    available if the `:allow_label` option was set to `true` when [using](#module-using)
+    `SensitiveData.Wrapper`.
   """
-  @type wrap_opts :: [label: term()]
+  @type wrap_opts :: [label: label :: term()]
 
   @typedoc """
   Execution options.
 
-  See `c:SensitiveData.Wrapper.exec/3`.
+  ## Options
+
+  - `:into` - a `t:spec/0` value defining how the execution result should be wrapped.
   """
   @type exec_opts :: [into: spec()]
 
@@ -191,16 +206,14 @@ defmodule SensitiveData.Wrapper do
 
   ## Options
 
-  - `:label` - a label displayed when the wrapper is inspected. This option is only
-    available if the `:allow_label` option was set to `true` when [using](#module-using)
-    `SensitiveData.Wrapper`.
+  See `t:wrap_opts/0`.
 
   ## Examples
 
       MySensitiveData.from(fn -> "foo" end)
       # #MySensitiveData<...>
 
-      MySensitiveData.from(fn -> "123451234512345" end, label: :credit_card_user_bob)
+      MySensitiveData.from(fn -> "5105105105105100" end, label: :credit_card_user_bob)
       # #MySensitiveData<label: :credit_card_user_bob, ...>
   """
   @callback from(function(), wrap_opts()) :: t()
@@ -233,10 +246,20 @@ defmodule SensitiveData.Wrapper do
 
   ## Examples
 
+      # Not recommended
       MySensitiveData.wrap("foo")
       # #MySensitiveData<...>
 
-      MySensitiveData.wrap("123451234512345", label: :credit_card_user_bob)
+      # Do this instead
+      MySensitiveData.from(fn -> "foo" end)
+      # #MySensitiveData<...>
+
+      # Not recommended
+      MySensitiveData.wrap("5105105105105100", label: :credit_card_user_bob)
+      # #MySensitiveData<label: :credit_card_user_bob, ...>
+
+      # Do this instead
+      MySensitiveData.from(fn -> "5105105105105100" end, label: :credit_card_user_bob)
       # #MySensitiveData<label: :credit_card_user_bob, ...>
   """
   @callback wrap(term(), wrap_opts()) :: t()
@@ -252,10 +275,22 @@ defmodule SensitiveData.Wrapper do
   > Calling this function should be discouraged: `c:exec/3` should be used instead
   > to interact with sensitive data.
 
-  You can always obtain the raw sensitive data via `exec(& &1)` but should seriously
+  You can always obtain the raw sensitive data via `exec(wrapped_value, & &1)` but should seriously
   reconsider if that's needed: usually a combination of `map/2` and `exec/2` should
   satisfy all your needs regarding sensitive data interaction, and sensitive data
   typically never needs to be extracted from wrappers.
+
+  ## Examples
+
+      data = MySensitiveData.from(fn -> "foo" end)
+
+      # Not recommended
+      MySensitiveData.unwrap(data)
+      # "foo"
+
+      # Do this instead if you absolutely must unwrap the value
+      MySensitiveData.exec(data, & &1)
+      # "foo"
   """
   @callback unwrap(wrapper :: t()) :: term()
 
@@ -265,13 +300,40 @@ defmodule SensitiveData.Wrapper do
   Executes the provided function with the sensitive term provided as the function argument,
   ensuring no data leaks in case of error.
 
-  The unwrapped result of the callback execution is then returned.
+  The unwrapped result of the callback execution is then either returned as is,
+  or wrapped according to provided options.
+
+  ## Examples
+
+      # CreditCard implements the SensitiveData.Wrapper behaviour
+      credit_card = CreditCard.from(fn -> "5105105105105100" end)
+
+      # We can call a function that expect a credit card number (in string
+      # format), and will return `%{result: :ok}` upon successful payment:
+      %{result: :ok} = CreditCard.exec(credit_card, &pay_with_credit_card/1)
+
+      # We can also alter the wrapped data without ever exposing it outside
+      # of a sensitive context protecting the data from leaks:
+      # PaymentToken implements the SensitiveData.Wrapper behaviour
+      CreditCard.exec(credit_card, fn card_number -> tokenize(card_number) end, into: PaymentToken)
+      # #PaymentToken<...>
   """
   @callback exec(wrapper :: t(), (sensitive_data -> result), exec_opts()) :: result
             when sensitive_data: term(), result: term()
 
   @doc """
   Invokes the callback on the wrapped sensitive term and returns the wrapped result.
+
+  ## Options
+
+  See `t:wrap_opts/0`.
+
+  ## Examples
+
+      data = MySensitiveData.from(fn -> "foo" end)
+
+      MySensitiveData.map(data, fn orig -> orig <> "bar" end, label: :now_foobar)
+      # #MySensitiveData<label: :now_foobar, ...>
   """
   @callback map(wrapper :: t(), (sensitive_data_orig -> sensitive_data_transformed), wrap_opts()) ::
               t()

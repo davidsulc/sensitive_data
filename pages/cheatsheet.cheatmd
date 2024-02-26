@@ -152,10 +152,10 @@ end
 In use (either implementation):
 
 ```shell
-iex(1)> cc = CreditCard.from(fn -> "123451234512345" end)
-#CreditCard<redacted: "1**********2345", ...>
+iex(1)> cc = CreditCard.from(fn -> "5105105105105100" end)
+#CreditCard<redacted: "5***********5100", ...>
 iex(2)> cc.redacted
-"1**********2345"
+"5***********5100"
 ```
 
 ### Labeling
