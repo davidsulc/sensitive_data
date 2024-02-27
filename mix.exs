@@ -7,6 +7,8 @@ defmodule SensitiveData.MixProject do
       version: "0.1.0",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
       deps: deps(),
       docs: [
         groups_for_modules: [
@@ -57,4 +59,17 @@ defmodule SensitiveData.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp description() do
+    "A library for manipulating sensitive/private/confidential data and avoiding data leaks."
+  end
+
+  defp package() do
+    [
+      files: ~w(lib pages .formatter.exs mix.exs README*),
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => "https://github.com/davidsulc/sensitive_data"},
+      source_url: "https://github.com/davidsulc/sensitive_data"
+    ]
+  end
 end
