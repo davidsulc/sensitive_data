@@ -7,7 +7,7 @@ The [Data Leak Prevention](pages/data_leak_prevention.md) page exposes the probl
 and how this library proposes to address it.
 
 For a quick overview, take a look at the [Getting Started](pages/getting_started.md)
-and [Cheatsheet](pages/cheatsheet.md) pages.
+and [Cheatsheet](pages/cheatsheet.cheatmd) pages.
 
 ## Installation
 
