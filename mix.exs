@@ -61,7 +61,7 @@ defmodule SensitiveData.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp description() do
-    "A library for manipulating sensitive/private/confidential data and avoiding data leaks."
+    "A library for manipulating sensitive/private/confidential data and preventing data leaks."
   end
 
   defp package() do

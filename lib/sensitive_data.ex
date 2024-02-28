@@ -1,9 +1,12 @@
 defmodule SensitiveData do
   @moduledoc """
-  This library aims to make following the
+  This library aims to make [Data Leak Prevention](data_leak_prevention.html)
+  straightforward and convenient, by making it easy to follow most of the
   [Erlang Ecosystem Foundation](https://erlef.org/)'s recommendations regarding
-  [protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html)
-  more convenient, thereby making it less likely that sensitive data is mishandled.
+  [protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html).
+
+  For a quick overview, take a look at the [Getting Started](getting_started.html)
+  and [Cheatsheet](cheatsheet.html) pages.
 
   While wrapping sensitive data within a `SensitiveData.Wrapper` instance will
   conform to many recommendations in the linked article (such as wrapping sensitive data in
