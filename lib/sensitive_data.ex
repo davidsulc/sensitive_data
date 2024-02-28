@@ -1,6 +1,6 @@
 defmodule SensitiveData do
   @moduledoc """
-  This library aims to make [Data Leak Prevention](data_leak_prevention.html)
+  This library aims to make [data leak prevention](data_leak_prevention.html)
   straightforward and convenient, by making it easy to follow most of the
   [Erlang Ecosystem Foundation](https://erlef.org/)'s recommendations regarding
   [protecting sensitive data](https://erlef.github.io/security-wg/secure_coding_and_deployment_hardening/sensitive_data.html).

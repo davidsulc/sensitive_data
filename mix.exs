@@ -1,6 +1,8 @@
 defmodule SensitiveData.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/davidsulc/sensitive_data"
+
   def project do
     [
       app: :sensitive_data,
@@ -10,6 +12,19 @@ defmodule SensitiveData.MixProject do
       description: description(),
       package: package(),
       deps: deps(),
+      elixirc_paths: elixirc_paths(Mix.env()),
+      test_coverage: [
+        ignore_modules: [
+          SensitiveData.Wrapper.Impl.PrivateData,
+          Support.Exceptions,
+          ~r/^SensitiveData\.DataType\../,
+          ~r/^Inspect./
+        ]
+      ],
+
+      # Docs
+      name: "Sensitive Data",
+      source_url: @source_url,
       docs: [
         groups_for_modules: [
           Redaction: [
@@ -20,20 +35,10 @@ defmodule SensitiveData.MixProject do
           ]
         ],
         extras: [
-          "README.md",
           "pages/getting_started.md",
           "pages/cheatsheet.cheatmd",
           "pages/guiding_principles.md",
           "pages/data_leak_prevention.md"
-        ]
-      ],
-      elixirc_paths: elixirc_paths(Mix.env()),
-      test_coverage: [
-        ignore_modules: [
-          SensitiveData.Wrapper.Impl.PrivateData,
-          Support.Exceptions,
-          ~r/^SensitiveData\.DataType\../,
-          ~r/^Inspect./
         ]
       ]
     ]
@@ -68,8 +73,8 @@ defmodule SensitiveData.MixProject do
     [
       files: ~w(lib pages .formatter.exs mix.exs README*),
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => "https://github.com/davidsulc/sensitive_data"},
-      source_url: "https://github.com/davidsulc/sensitive_data"
+      links: %{"GitHub" => @source_url},
+      source_url: @source_url
     ]
   end
 end

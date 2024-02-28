@@ -3,11 +3,11 @@
 A library for manipulating sensitive/private/confidential data and preventing
 data leaks.
 
-The [Data Leak Prevention](data_leak_prevention.html) page exposes the problem
+The [Data Leak Prevention](pages/data_leak_prevention.md) page exposes the problem
 and how this library proposes to address it.
 
-For a quick overview, take a look at the [Getting Started](getting_started.html)
-and [Cheatsheet](cheatsheet.html) pages.
+For a quick overview, take a look at the [Getting Started](pages/getting_started.md)
+and [Cheatsheet](pages/cheatsheet.md) pages.
 
 ## Installation
 
