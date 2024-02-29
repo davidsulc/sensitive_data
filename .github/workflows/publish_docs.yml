@@ -5,6 +5,7 @@ on:
 
 jobs:
   hex_docs_publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-20.04
     name: Publish docs to Hex
     steps:
