@@ -1,0 +1,21 @@
+name: "Publish docs to Hex"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hex_docs_publish:
+    needs: [test, pre-flight]
+    runs-on: ubuntu-20.04
+    name: Publish docs to Hex
+    steps:
+      - uses: davidsulc/sensitive_data/.github/actions/setup@main
+        with:
+          otp-version: '26.1'
+          elixir-version: '1.16.1'
+      - name: Publish
+        env:
+          # generated via `mix hex.user key generate --key-name publish-key --permission api:write`
+          # see https://hex.pm/docs/publish#publishing-from-ci
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish docs --yes
