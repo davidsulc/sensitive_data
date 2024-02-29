@@ -16,6 +16,13 @@ defmodule SensitiveData do
   for ETS tables containing sensitive data, flagging the current process as
   sensitive using [:erlang.process_flag(:sensitive, true)](https://erlang.org/doc/man/erlang.html#process_flag-2)
   in processes holding sensitive data, and so on).
+
+  > #### Beware {: .warning}
+  >
+  > This library is intended to prevent accidental leakage of sensitive data, it **WILL NOT**
+  > keep data safe from a malicious actor that has access to your system. For example, the
+  > wrapped sensitive data could be read via BEAM introspection functionality, such as
+  > [`:erlang.fun_info(..., :env)`](https://www.erlang.org/doc/man/erlang#fun_info-2)
   """
 
   alias SensitiveData.Redaction
