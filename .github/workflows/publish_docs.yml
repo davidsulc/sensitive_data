@@ -5,7 +5,6 @@ on:
 
 jobs:
   hex_docs_publish:
-    needs: [test, pre-flight]
     runs-on: ubuntu-20.04
     name: Publish docs to Hex
     steps:
